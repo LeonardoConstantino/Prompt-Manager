@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Prompt Manager</title>
+    <!-- TailwindCSS Script (Mantido conforme solicitado, mas o CSS agora assume o controle do tema) -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script>
+      // Verifica preferências do sistema ou localStorage
+      if (
+        localStorage.theme === 'dark' ||
+        (!('theme' in localStorage) &&
+          window.matchMedia('(prefers-color-scheme: dark)').matches)
+      ) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    </script>
+    <link rel="stylesheet" href="main.css" />
+    <link rel="stylesheet" href="./js/utils/markdown.css" />
+  </head>
+  <!-- Body usa variáveis CSS definidas no main.css -->
+  <body class="h-screen w-screen overflow-hidden flex flex-col">
+    
+    <!-- Navbar: Classes limpas via .app-navbar -->
+    <nav class="app-navbar">
+      <div class="flex items-center gap-3">
+        <!-- Ícone do Logo: Agora usa text-accent -->
+        <svg
+          class="w-7 h-7 text-accent"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+          ></path>
+        </svg>
+        <span class="app-logo">
+          PROMPT<span class="app-logo-accent">MANAGER</span>
+        </span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Input file oculto -->
+        <input type="file" id="file-import" class="hidden" accept=".json" />
+
+        <!-- Botão Exportar: Usando classe .btn .btn-secondary -->
+        <button
+          id="btn-export"
+          class="btn btn-secondary"
+          title="Exportar Backup JSON"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+          Exportar
+        </button>
+
+        <!-- Botão Importar -->
+        <button
+          id="btn-import"
+          class="btn btn-secondary"
+          title="Importar Backup JSON"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12"></path>
+          </svg>
+          Importar
+        </button>
+
+        <!-- Botão Configurações: Usando classe .btn-icon -->
+        <button
+          id="btn-settings"
+          class="btn-icon ml-2"
+          title="Configurações"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Main Layout -->
+    <div class="flex-1 flex overflow-hidden">
+      <!-- Sidebar: Fundo ajustado para superfície (ligeiramente mais claro que o main no dark mode) -->
+      <aside 
+        id="sidebar" 
+        class="w-1/4 min-w-[250px] max-w-sm h-full bg-bg-surface border-r border-border-subtle"
+      >
+        <!-- Conteúdo da Sidebar é dinâmico -->
+      </aside>
+
+      <!-- Main Content: Fundo principal da aplicação -->
+      <main id="viewer" class="flex-1 h-full bg-bg-app relative p-6 overflow-y-auto">
+        <!-- Viewer será renderizado aqui -->
+      </main>
+    </div>
+
+    <!-- Overlay do Editor -->
+    <div id="editor-overlay" class="fixed inset-0 z-50 hidden bg-black/60 backdrop-blur-sm"></div>
+
+    <div id="modal-container"></div>
+
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>
