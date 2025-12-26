@@ -5,57 +5,68 @@ export default class Modal {
   constructor(containerId = 'modal-container') {
     this.container = document.getElementById(containerId);
     this.init();
-    
+
     // Listeners globais
     eventBus.on('modal:open', (payload) => this.open(payload));
     eventBus.on('modal:close', () => this.close());
   }
 
   init() {
-    // Garante que o container esteja oculto inicialmente
-    this.container.className = 'fixed inset-0 z-50 hidden overflow-y-auto';
+    // Adicionei 'z-[60]' para garantir que fique acima de tudo (editor, navbar, etc)
+    this.container.className = 'fixed inset-0 z-[60] hidden overflow-y-auto';
     this.container.setAttribute('aria-modal', 'true');
+    this.container.setAttribute('role', 'dialog');
   }
 
   open({ title, content, onClose }) {
     this.onCloseCallback = onClose;
 
     this.container.innerHTML = `
-      <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <!-- Backdrop -->
-        <div class="fixed inset-0 transition-opacity" aria-hidden="true">
-          <div class="absolute inset-0 bg-gray-900 opacity-75" id="modal-backdrop"></div>
-        </div>
-
-        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-        <!-- Modal Panel -->
-        <div class="inline-block align-bottom bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full border border-gray-700">
+        <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
           
-          <!-- Header -->
-          <div class="bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4 border-b border-gray-700 flex justify-between items-center">
-            <h3 class="text-lg leading-6 font-medium text-white" id="modal-title">
-              ${title || 'Prompt Manager'}
-            </h3>
-            <button type="button" id="btn-modal-close-x" class="text-gray-400 hover:text-white focus:outline-none">
-                ${getIcon('close', 'w-5 h-5')}
-            </button>
+          <!-- Backdrop: Escuro com Blur (Glassmorphism) -->
+          <div class="fixed inset-0 transition-opacity cursor-pointer" aria-hidden="true">
+            <div class="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity" id="modal-backdrop"></div>
           </div>
 
-          <!-- Body -->
-          <div class="bg-gray-800 px-4 pt-5 pb-4 sm:p-6 text-gray-300 max-h-[60vh] overflow-y-auto">
-            ${content}
-          </div>
+          <!-- Espaçador para centralização vertical -->
+          <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-          <!-- Footer -->
-          <div class="bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-            <button type="button" id="btn-modal-close" class="mt-3 w-full inline-flex justify-center rounded-md border border-gray-600 shadow-sm px-4 py-2 bg-gray-800 text-base font-medium text-gray-300 hover:text-white hover:bg-gray-600 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
-              Fechar
-            </button>
+          <!-- Modal Panel -->
+          <!-- animate-scale-in: Sugestão de animação suave de entrada -->
+          <div class="inline-block align-bottom bg-bg-surface border border-border-subtle rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg w-full relative">
+            
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-border-subtle flex justify-between items-center bg-bg-surface">
+              <h3 class="text-lg font-bold text-text-main tracking-tight leading-6" id="modal-title">
+                ${title || 'Prompt Manager'}
+              </h3>
+              
+              <!-- Botão X: Hover vermelho sutil -->
+              <button type="button" id="btn-modal-close-x" class="p-1.5 rounded-md text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors focus:outline-none">
+                  ${getIcon('close', 'w-5 h-5')}
+              </button>
+            </div>
+
+            <!-- Body -->
+            <!-- Adicionei 'prose-sm' caso o conteúdo seja texto longo, para melhor formatação -->
+            <div class="px-6 py-6 text-text-muted max-h-[60vh] overflow-y-auto custom-scrollbar leading-relaxed">
+              ${content}
+            </div>
+
+            <!-- Footer -->
+            <!-- bg-bg-app/50 cria uma diferenciação sutil do corpo do modal -->
+            <div class="px-6 py-4 bg-bg-app/50 border-t border-border-subtle sm:flex sm:flex-row-reverse gap-3">
+              <!-- Botão Fechar Padronizado -->
+              <button type="button" id="btn-modal-close" class="btn btn-secondary w-full sm:w-auto justify-center shadow-sm">
+                Fechar
+              </button>
+              
+              <!-- O JS pode injetar botões de ação extra aqui se necessário -->
+            </div>
           </div>
         </div>
-      </div>
-    `;
+      `;
 
     this.container.classList.remove('hidden');
     this.attachListeners();
@@ -69,7 +80,7 @@ export default class Modal {
 
   attachListeners() {
     const closeFn = () => this.close();
-    
+
     // Fecha ao clicar no backdrop, no X ou no botão Fechar
     this.container.querySelector('#modal-backdrop').onclick = closeFn;
     this.container.querySelector('#btn-modal-close-x').onclick = closeFn;

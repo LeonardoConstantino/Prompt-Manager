@@ -41,6 +41,7 @@
  * @property {object} preferences - Preferências do usuário
  * @property {'light'|'dark'} preferences.theme - Tema da aplicação
  * @property {number} preferences.editorFontSize - Tamanho da fonte do editor
+ * @property {Array<{name: string, url: string}>} clickToRun - Configurações de links para Click-to-Run
  * @property {string[]} searchHistory - Últimas buscas (opcional)
  */
 
@@ -58,6 +59,10 @@ const INITIAL_DATA = {
       theme: 'dark',
       editorFontSize: 14,
     },
+    clickToRun: [
+      { name: 'ChatGPT', url: 'https://chatgpt.com' },
+      { name: 'Claude', url: 'https://claude.ai' },
+    ],
     searchHistory: [],
   },
 };
@@ -123,6 +128,11 @@ class PromptRepository {
         throw error;
       }
     }, 'boot');
+  }
+
+  getStorageSize() {
+    this.#ensureInitialized();
+    return this.storage.getStorageSize();
   }
 
   // Helper para garantir acesso seguro
@@ -441,27 +451,27 @@ class PromptRepository {
    */
   async deleteVersion(promptId, versionId) {
     return this._executeWithLoading(async () => {
-    this.#ensureInitialized();
+      this.#ensureInitialized();
 
-    const currentData = this.storage?.getValue() || INITIAL_DATA;
+      const currentData = this.storage?.getValue() || INITIAL_DATA;
 
-    if (!currentData.versions[promptId]) {
-      throw new Error('No versions found for this prompt');
-    }
+      if (!currentData.versions[promptId]) {
+        throw new Error('No versions found for this prompt');
+      }
 
-    // Não permite deletar a versão inicial
-    if (currentData.versions[promptId].length === 1) {
-      throw new Error('Cannot delete the initial version');
-    }
+      // Não permite deletar a versão inicial
+      if (currentData.versions[promptId].length === 1) {
+        throw new Error('Cannot delete the initial version');
+      }
 
-    currentData.versions[promptId] = currentData.versions[promptId].filter(
-      /** @param {Version} v */
-      (v) => v.id !== versionId
-    );
+      currentData.versions[promptId] = currentData.versions[promptId].filter(
+        /** @param {Version} v */
+        (v) => v.id !== versionId
+      );
 
-    await this.storage?.setValue(currentData);
+      await this.storage?.setValue(currentData);
 
-    eventBus.emit('version:deleted', { promptId, versionId });
+      eventBus.emit('version:deleted', { promptId, versionId });
     }, 'background');
   }
 
@@ -493,6 +503,8 @@ class PromptRepository {
           ...currentData.config.preferences,
           ...(updates.preferences || {}),
         },
+        clickToRun: updates.clickToRun || currentData.config.clickToRun,
+        searchHistory: updates.searchHistory || currentData.config.searchHistory,
       };
 
       await this.storage?.setValue(currentData);
@@ -518,9 +530,9 @@ class PromptRepository {
    */
   async setFullData(data) {
     return this._executeWithLoading(async () => {
-    this.#ensureInitialized();
-    await this.storage?.setValue(data);
-    eventBus.emit('data:imported', {});
+      this.#ensureInitialized();
+      await this.storage?.setValue(data);
+      eventBus.emit('data:imported', {});
     }, 'boot');
   }
 

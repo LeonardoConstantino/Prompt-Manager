@@ -1,5 +1,8 @@
 import eventBus from '../utils/eventBus.js';
-import {MarkdownParser} from '../utils/markdown.js';
+import { MarkdownParser } from '../utils/markdown.js';
+import { getIcon } from '../utils/Icons.js';
+import { metaKey } from '../app.js';
+import { confirmModal } from './ConfirmModal.js';
 
 export default class PromptEditor {
   constructor(containerId) {
@@ -8,101 +11,183 @@ export default class PromptEditor {
     this.currentId = null;
     this.isDirty = false;
     this.markdown = new MarkdownParser();
-    
+
     // Registra estado global de edição
     window.appState = window.appState || {};
     window.appState.isEditing = false;
 
     // Proteção de fechamento de aba
     window.addEventListener('beforeunload', (e) => {
-        if (this.isDirty && !this.container.classList.contains('hidden')) {
-            e.preventDefault();
-            e.returnValue = ''; // Padrão browser
-        }
+      if (this.isDirty && !this.container.classList.contains('hidden')) {
+        e.preventDefault();
+        e.returnValue = ''; // Padrão browser
+      }
     });
-
 
     // Listeners
     eventBus.on('prompt:create', () => this.open());
     eventBus.on('prompt:edit', ({ id }) => {
       eventBus.emit('ui:request-edit-data', { id });
     });
-    
+
     // Recebe dados do App Controller
     eventBus.on('editor:load', ({ prompt }) => this.open(prompt));
+
+    // Listener Global de Salvar
+    eventBus.on('ui:trigger-save', () => {
+      // Verifica se este componente está visível
+      if (!this.container.classList.contains('hidden')) {
+        // Simula clique no botão salvar (reutiliza lógica de validação)
+        this.save();
+      }
+    });
   }
 
   // Wrapper para verificar se pode descartar alterações
-  checkDirty(callback) {
-      if (this.isDirty && !this.container.classList.contains('hidden')) {
-          if (confirm('Você tem alterações não salvas. Deseja descartá-las?')) {
-              this.isDirty = false;
-              window.appState.isEditing = false;
-              callback();
-          }
-      } else {
-          callback();
+  async checkDirty(callback) {
+    if (this.isDirty && !this.container.classList.contains('hidden')) {
+          const confirmed = await confirmModal.ask(
+              'Descartar alterações?',
+              'Você tem edições não salvas. Se sair agora, o progresso será perdido.',
+              { variant: 'danger', confirmText: 'Descartar' }
+          );
+      if (confirmed) {
+        this.isDirty = false;
+        window.appState.isEditing = false;
+        callback();
       }
+    } else {
+      callback();
+    }
   }
 
   open(prompt = null) {
     this.editMode = !!prompt;
     this.currentId = prompt ? prompt.id : null;
-    
+
     const data = prompt || { name: '', description: '', tags: [], content: '' };
     const tagsString = data.tags.join(', ');
-    
-    this.isDirty = false;
-    window.appState.isEditing = true;
-    
+
+    // this.isDirty = false;
+    // window.appState.isEditing = true;
+
     // Serializa estado inicial para comparação
     this.initialState = JSON.stringify({
-        name: prompt?.name || '',
-        desc: prompt?.description || '',
-        tags: prompt?.tags || [],
-        content: prompt?.content || ''
+      name: prompt?.name || '',
+      desc: prompt?.description || '',
+      tags: prompt?.tags || [],
+      content: prompt?.content || '',
     });
 
     this.container.classList.remove('hidden');
-    
+
     this.container.innerHTML = `
-      <div class="absolute inset-0 bg-gray-900 z-10 flex flex-col h-full">
-        <div class="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
-          <h2 class="text-xl font-bold text-white">${this.editMode ? 'Editar Prompt' : 'Novo Prompt'}</h2>
-          <div class="flex gap-2">
-            <button id="btn-cancel" class="px-4 py-2 text-gray-300 hover:text-white">Cancelar</button>
-            <button id="btn-save" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded font-medium">Salvar</button>
+      <!-- Container Fullscreen: bg-bg-app para consistência com o tema -->
+      <div class="absolute inset-0 z-50 flex flex-col h-full bg-bg-app animate-fade-in">
+        
+        <!-- HEADER DO EDITOR -->
+        <div class="h-16 px-6 border-b border-border-subtle bg-bg-surface flex justify-between items-center shadow-sm shrink-0">
+          <div class="flex items-center gap-3">
+             <span class="p-2 rounded-lg bg-accent/10 text-accent">
+                ${getIcon(this.editMode ? 'edit' : 'plus', 'w-5 h-5')}
+             </span>
+             <h2 class="text-lg font-bold text-text-main tracking-tight">
+                ${this.editMode ? 'Editar Prompt' : 'Criar Novo Prompt'}
+             </h2>
+          </div>
+          
+          <div class="flex gap-3">
+            <button id="btn-cancel" class="btn btn-ghost text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors">
+                Cancelar
+            </button>
+            <button id="btn-save" class="btn btn-primary px-6 shadow-lg shadow-accent/20" title="Salvar (${metaKey}+S)">
+                ${getIcon('save', 'w-4 h-4 mr-2')}
+                Salvar
+            </button>
           </div>
         </div>
         
-        <div class="flex-1 overflow-hidden flex flex-col p-4 gap-4">
-          <div class="grid grid-cols-2 gap-4">
-            <input type="text" id="edit-name" value="${data.name}" placeholder="Nome do Prompt" class="bg-gray-800 border border-gray-600 rounded p-2 text-white w-full">
-            <input type="text" id="edit-tags" value="${tagsString}" placeholder="Tags (separadas por vírgula)" class="bg-gray-800 border border-gray-600 rounded p-2 text-white w-full">
-          </div>
-          <input type="text" id="edit-desc" value="${data.description}" placeholder="Descrição curta" class="bg-gray-800 border border-gray-600 rounded p-2 text-white w-full">
+        <!-- CORPO DO EDITOR (Scrollável se a tela for pequena, mas fixo em desktop) -->
+        <div class="flex-1 overflow-hidden flex flex-col p-6 gap-5">
           
-          <div class="flex-1 flex gap-4 overflow-hidden">
-            <!-- Editor -->
-            <div class="w-1/2 flex flex-col">
-              <label class="text-xs text-gray-400 mb-1">Markdown Entrada</label>
-              <textarea id="edit-content" class="flex-1 bg-gray-800 border border-gray-600 rounded p-4 text-white font-mono resize-none focus:outline-none focus:border-blue-500">${data.content}</textarea>
+          <!-- Metadados: Layout Grid Otimizado -->
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-4 shrink-0">
+            <!-- Nome (ocupa 8 colunas) -->
+            <div class="md:col-span-8 space-y-1">
+                <label class="text-[10px] uppercase font-bold text-text-muted tracking-wider ml-1">Nome do Prompt</label>
+                <input type="text" id="edit-name" value="${
+                  data.name
+                }" placeholder="Ex: Gerador de Imagens Cyberpunk..." 
+                    class="input-surface w-full h-10 px-3 rounded-lg text-sm font-medium focus:ring-2 ring-offset-1 ring-offset-bg-app dark:ring-offset-black">
             </div>
             
-            <!-- Preview -->
-            <div class="w-1/2 flex flex-col">
-              <label class="text-xs text-gray-400 mb-1">Preview</label>
-              <div id="preview-area" class="flex-1 bg-gray-900 border border-gray-700 rounded p-4 overflow-y-auto text-gray-300">
+            <!-- Tags (ocupa 4 colunas) -->
+            <div class="md:col-span-4 space-y-1">
+                <label class="text-[10px] uppercase font-bold text-text-muted tracking-wider ml-1">Tags</label>
+                <div class="relative">
+                    <input type="text" id="edit-tags" value="${tagsString}" placeholder="js, css, react..." 
+                        class="input-surface w-full h-10 px-3 pl-8 rounded-lg text-sm font-mono text-accent">
+                    <div class="absolute left-2.5 top-2.5 text-text-muted pointer-events-none">#</div>
+                </div>
+            </div>
+
+            <!-- Descrição (Full width) -->
+            <div class="md:col-span-12 space-y-1">
+                <input type="text" id="edit-desc" value="${
+                  data.description
+                }" placeholder="Uma breve descrição do que este prompt faz..." 
+                    class="input-surface w-full h-10 px-3 rounded-lg text-sm text-text-muted focus:text-text-main transition-colors">
+            </div>
+          </div>
+          
+          <!-- ÁREA DE EDIÇÃO SPLIT (Flex Grow) -->
+          <div class="flex-1 flex gap-4 overflow-hidden min-h-0">
+            
+            <!-- Coluna: Editor (Markdown Input) -->
+            <div class="w-1/2 flex flex-col h-full rounded-xl border border-border-subtle bg-bg-surface overflow-hidden focus-within:ring-2 focus-within:ring-accent/50 focus-within:border-accent transition-all shadow-sm">
+              <div class="px-4 py-2 bg-bg-surface-hover/50 border-b border-border-subtle flex justify-between items-center">
+                 <label class="text-xs font-medium text-text-muted flex items-center gap-2">
+                    ${getIcon('code', 'w-3 h-3')} Markdown Source
+                 </label>
+                 <span class="text-[10px] text-text-muted opacity-60">Aceita GFM</span>
+              </div>
+              <textarea id="edit-content" 
+                class="flex-1 w-full h-full p-4 bg-transparent text-text-main font-mono text-sm leading-6 resize-none outline-none custom-scrollbar placeholder:text-text-muted/30"
+                placeholder="Escreva seu prompt aqui...">${
+                  data.content
+                }</textarea>
+            </div>
+            
+            <!-- Coluna: Preview -->
+            <div class="w-1/2 flex flex-col h-full rounded-xl border border-border-subtle bg-bg-app/50 overflow-hidden">
+              <div class="px-4 py-2 bg-bg-surface-hover/50 border-b border-border-subtle flex justify-between items-center">
+                 <label class="text-xs font-medium text-text-muted flex items-center gap-2">
+                    ${getIcon('eye', 'w-3 h-3')} Live Preview
+                 </label>
+              </div>
+              <div id="preview-area" class="flex-1 p-5 overflow-y-auto custom-scrollbar prompt-content prose-sm">
                 ${this.markdown.parse(data.content)}
               </div>
             </div>
           </div>
 
-          ${this.editMode ? `
-          <div class="mt-2">
-             <input type="text" id="version-note" placeholder="Nota da versão (opcional)" class="w-full bg-gray-800 border border-gray-600 rounded p-2 text-sm text-white">
+          <!-- Nota de Versão (Condicional) -->
+          ${
+            this.editMode
+              ? `
+          <div class="shrink-0 animate-fade-in-up">
+             <div class="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/20 p-2 rounded-lg">
+                <span class="text-yellow-600 dark:text-yellow-400">${getIcon(
+                  'info-circle',
+                  'w-4 h-4'
+                )}</span>
+                <input type="text" id="version-note" placeholder="O que mudou nesta versão? (Opcional)" 
+                    class="bg-transparent border-none w-full text-sm text-text-main placeholder:text-text-muted focus:ring-0 outline-none h-auto p-0">
+             </div>
           </div>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
       </div>
     `;
@@ -113,14 +198,14 @@ export default class PromptEditor {
   attachListeners() {
     const textarea = this.container.querySelector('#edit-content');
     const preview = this.container.querySelector('#preview-area');
-    
+
     // Live Preview
     let debounceTimer;
     textarea.addEventListener('input', () => {
       const text = textarea.value;
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
-          preview.innerHTML = this.markdown.parse(text);
+        preview.innerHTML = this.markdown.parse(text);
       }, 300);
       // preview.innerHTML = this.markdown.parse(textarea.value);
     });
@@ -132,23 +217,23 @@ export default class PromptEditor {
     this.container.querySelector('#btn-save').onclick = () => {
       this.save();
     };
-    
+
     const inputs = this.container.querySelectorAll('input, textarea');
-    inputs.forEach(el => {
-        el.addEventListener('input', () => {
-            this.checkChanges();
-        });
+    inputs.forEach((el) => {
+      el.addEventListener('input', () => {
+        this.checkChanges();
+      });
     });
 
-    this.container.querySelector('#btn-cancel').onclick = () => {
-        this.checkDirty(() => this.close());
+    this.container.querySelector('#btn-cancel').onclick = async() => {
+      await this.checkDirty(() => this.close());
     };
-    
+
     // Salvar limpa o dirty state
     this.container.querySelector('#btn-save').onclick = () => {
-        this.isDirty = false; 
-        window.appState.isEditing = false;
-        this.save();
+      this.isDirty = false;
+      window.appState.isEditing = false;
+      this.save();
     };
   }
 
@@ -165,12 +250,15 @@ export default class PromptEditor {
       return;
     }
 
-    const tags = tagsStr.split(',').map(t => t.trim()).filter(t => t);
+    const tags = tagsStr
+      .split(',')
+      .map((t) => t.trim())
+      .filter((t) => t);
 
     const payload = {
       data: { name, description: desc, tags, content },
       saveVersion: this.editMode, // Se editando, salva versão
-      note
+      note,
     };
 
     if (this.editMode) {
@@ -183,21 +271,25 @@ export default class PromptEditor {
 
   checkChanges() {
     const currentState = JSON.stringify({
-        name: this.container.querySelector('#edit-name').value,
-        desc: this.container.querySelector('#edit-desc').value,
-        tags: this.container.querySelector('#edit-tags').value.split(',').map(t=>t.trim()).filter(t=>t),
-        content: this.container.querySelector('#edit-content').value
+      name: this.container.querySelector('#edit-name').value,
+      desc: this.container.querySelector('#edit-desc').value,
+      tags: this.container
+        .querySelector('#edit-tags')
+        .value.split(',')
+        .map((t) => t.trim())
+        .filter((t) => t),
+      content: this.container.querySelector('#edit-content').value,
     });
 
     const changed = currentState !== this.initialState;
     this.isDirty = changed;
-    
+
     // Feedback Visual no botão Cancelar ou título
     const title = this.container.querySelector('h2');
     if (changed && !title.textContent.endsWith('*')) {
-        title.textContent += ' *';
+      title.textContent += ' *';
     } else if (!changed && title.textContent.endsWith('*')) {
-        title.textContent = title.textContent.slice(0, -2);
+      title.textContent = title.textContent.slice(0, -2);
     }
   }
 

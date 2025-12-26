@@ -1,0 +1,272 @@
+/**
+ * Markdown Parser - Deep Nebula Theme
+ * @version 5.0.0
+ * Integração total com o sistema de design principal via CSS Variables
+ */
+
+/* ===========================
+   VARIÁVEIS LOCAIS (Mapeadas do Tema Global)
+   =========================== */
+.md-container {
+  /* Herança do Tema Principal (main.css) */
+  /* Removemos bg fixo para transparência */
+  --md-bg: transparent; 
+  
+  --md-text: var(--text-main, #333);
+  --md-heading: var(--text-main, #111);
+  --md-muted: var(--text-muted, #666);
+  
+  --md-border: var(--border-subtle, #e5e7eb);
+  
+  /* Accent Color para Links */
+  --md-link: var(--accent, #7c3aed);
+  --md-link-hover: var(--accent-hover, #6d28d9);
+  
+  /* Code Blocks - Ajustado para harmonizar com Zinc */
+  --md-code-bg: rgba(0,0,0, 0.05); /* Light mode tint */
+  --md-code-text: #24292e;
+  
+  --md-inline-code-bg: rgba(0,0,0, 0.05);
+  --md-inline-code-text: #e83e8c; /* Pink padrão markdown */
+
+  /* Blockquote */
+  --md-quote-border: var(--border-subtle, #e5e7eb);
+  --md-quote-bg: rgba(0,0,0, 0.02);
+
+  /* Espaçamentos */
+  --md-space-sm: 0.5rem;
+  --md-space-md: 1rem;
+  --md-space-lg: 1.5rem;
+  
+  /* Fontes */
+  --md-font-sans: inherit; /* Usa a font do body */
+  --md-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+/* ===========================
+   DARK MODE OVERRIDES
+   Depende da classe .dark no HTML ou body
+   =========================== */
+:is(.dark .md-container) {
+  --md-text: var(--text-main);
+  --md-heading: var(--text-main);
+  --md-muted: var(--text-muted);
+  --md-border: var(--border-subtle);
+  
+  /* Code Dark */
+  --md-code-bg: rgba(255,255,255, 0.05); /* Dark mode tint */
+  --md-code-text: #e5e7eb;
+  
+  --md-inline-code-bg: rgba(255,255,255, 0.1);
+  --md-inline-code-text: #ff7b72;
+  
+  --md-quote-bg: rgba(255,255,255, 0.03);
+}
+
+/* ===========================
+   ESTILOS BASE
+   =========================== */
+
+.md-container {
+  max-width: 100%; /* Deixa o layout pai controlar a largura */
+  margin: 0;
+  padding: 0;
+  font-family: var(--md-font-sans);
+  font-size: 1rem;
+  line-height: 1.7; /* Leitura confortável */
+  color: var(--md-text);
+  background-color: var(--md-bg);
+}
+
+/* ===========================
+   HEADERS
+   =========================== */
+
+.md-container :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: var(--md-space-lg);
+  margin-bottom: var(--md-space-md);
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--md-heading);
+  letter-spacing: -0.025em; /* Tight tracking moderno */
+}
+
+/* Classes utilitárias do parser (.md-h1, etc) */
+.md-container .md-h1 {
+  font-size: 2em;
+  border-bottom: 1px solid var(--md-border);
+  padding-bottom: 0.3em;
+}
+
+.md-container .md-h2 {
+  font-size: 1.5em;
+  border-bottom: 1px solid var(--md-border);
+  padding-bottom: 0.3em;
+}
+
+.md-container .md-h3 { font-size: 1.25em; }
+.md-container .md-h4 { font-size: 1em; }
+
+/* ===========================
+   ELEMENTOS DE TEXTO
+   =========================== */
+
+.md-container p {
+  margin-bottom: var(--md-space-md);
+}
+
+.md-container strong { font-weight: 700; color: var(--md-heading); }
+.md-container em { font-style: italic; }
+
+/* Links */
+.md-container a {
+  color: var(--md-link);
+  text-decoration: none;
+  font-weight: 500;
+  border-bottom: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.md-container a:hover {
+  color: var(--md-link-hover);
+  border-bottom-color: var(--md-link-hover);
+}
+
+/* ===========================
+   LISTAS
+   =========================== */
+
+.md-container ul, 
+.md-container ol {
+  margin-bottom: var(--md-space-md);
+  padding-left: 1.5em;
+}
+
+.md-container li {
+  margin-bottom: 0.25em;
+}
+
+.md-container ul { list-style-type: disc; }
+.md-container ol { list-style-type: decimal; }
+
+/* Marker color fix */
+.md-container li::marker {
+  color: var(--md-muted);
+}
+
+/* ===========================
+   CÓDIGO E PRE
+   =========================== */
+
+/* Inline Code (`var`) */
+.md-container code:not(pre code) {
+  padding: 0.2em 0.4em;
+  font-size: 0.875em;
+  font-family: var(--md-font-mono);
+  background-color: var(--md-inline-code-bg);
+  color: var(--md-inline-code-text);
+  border-radius: 0.375rem; /* rounded-md */
+  white-space: pre-wrap; /* Quebra linha se necessário */
+}
+
+/* Code Block (```) */
+.md-container pre {
+  padding: var(--md-space-md);
+  margin-bottom: var(--md-space-md);
+  background-color: var(--md-code-bg);
+  border: 1px solid var(--md-border);
+  border-radius: 0.5rem; /* rounded-lg */
+  overflow-x: auto;
+}
+
+.md-container pre code {
+  font-family: var(--md-font-mono);
+  font-size: 0.875em;
+  color: var(--md-code-text);
+  background: transparent;
+  padding: 0;
+  border: none;
+  display: block;
+  line-height: 1.6;
+}
+
+/* Custom Scrollbar para Code Blocks */
+.md-container pre::-webkit-scrollbar {
+  height: 8px;
+}
+.md-container pre::-webkit-scrollbar-thumb {
+  background-color: var(--md-border);
+  border-radius: 4px;
+}
+
+/* ===========================
+   BLOCKQUOTE
+   =========================== */
+
+.md-container blockquote {
+  margin: var(--md-space-md) 0;
+  padding: var(--md-space-sm) var(--md-space-md);
+  color: var(--md-muted);
+  background-color: var(--md-quote-bg);
+  border-left: 4px solid var(--md-quote-border);
+  border-radius: 0 0.5rem 0.5rem 0;
+  font-style: italic;
+}
+
+/* ===========================
+   IMAGENS E DIVISORES
+   =========================== */
+
+.md-container img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: var(--md-space-md) 0;
+  border: 1px solid var(--md-border);
+}
+
+.md-container hr {
+  height: 1px;
+  margin: 2rem 0;
+  background-color: var(--md-border);
+  border: none;
+}
+
+/* ===========================
+   RESPONSIVIDADE
+   =========================== */
+
+@media (max-width: 768px) {
+  .md-container {
+    --md-font-size: 14px;
+    padding: 12px;
+  }
+  
+  .md-container .md-h1 { font-size: 1.75em; }
+  .md-container .md-h2 { font-size: 1.4em; }
+  .md-container .md-h3 { font-size: 1.15em; }
+  .md-container .md-code-block { 
+    padding: 12px;
+    font-size: 80%;
+  }
+}
+
+/* ===========================
+   PRINT
+   =========================== */
+
+@media print {
+  .md-container {
+    max-width: 100%;
+    padding: 0;
+  }
+  
+  .md-container .md-link {
+    color: #000;
+    text-decoration: underline;
+  }
+  
+  .md-container .md-code-block {
+    border: 1px solid #ddd;
+  }
+}

@@ -351,7 +351,7 @@ class TextDiff {
     if (diff.removed.length > 0) {
       lines.push('❌ REMOÇÕES:');
       for (const { oldIndex, content } of diff.removed) {
-        lines.push(`  Linha ${oldIndex}: ${content}`);
+        lines.push(`  Linha ${oldIndex}:. ${content}`);
       }
       lines.push('');
     }

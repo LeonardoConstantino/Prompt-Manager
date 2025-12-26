@@ -1,8 +1,10 @@
-/* @import "tailwindcss"; */
+@import "tailwindcss";
 
-/* === 1. Configuração do Tema e Variáveis === */
+/* 1. Definição correta do Dark Mode manual para Tailwind v4 */
+@variant dark (&:where(.dark, .dark *));
+
+/* 2. Configuração do Tema (Vinculando variáveis) */
 @theme {
-  /* Definindo cores personalizadas vinculadas às variáveis CSS */
   --color-bg-app: var(--bg-app);
   --color-bg-surface: var(--bg-surface);
   --color-bg-surface-hover: var(--bg-surface-hover);
@@ -14,60 +16,82 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-text: var(--accent-text);
+  
+  --animate-scale-in: scale-in 0.2s ease-out forwards;
+  --animate-fade-in: fade-in 0.2s ease-out forwards;
+
+  @keyframes scale-in {
+    0% { transform: scale(0.95); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  
+  @keyframes fade-in {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
 }
 
-/* Base Variables - Tema Claro (Padrão) */
+/* 3. Variáveis Base (LIGHT MODE) */
 :root {
+  color-scheme: light; /* Força renderização clara nativa */
+  
   --bg-app: #f4f4f5;       /* Zinc 100 */
   --bg-surface: #ffffff;   /* White */
-  --bg-surface-hover: #e4e4e7; /* Zinc 200 */
-  --border-subtle: #d4d4d8; /* Zinc 300 */
+  --bg-surface-hover: #e4e4e7;
+  --border-subtle: #d4d4d8; 
+  --input-bg: #ffffff;
   
-  --text-main: #18181b;    /* Zinc 900 */
-  --text-muted: #71717a;   /* Zinc 500 */
+  --text-main: #18181b;    
+  --text-muted: #71717a;   
   
-  /* Accent: Violet (Substituindo o Azul) */
   --accent: #7c3aed;       /* Violet 600 */
-  --accent-hover: #6d28d9; /* Violet 700 */
+  --accent-hover: #6d28d9; 
   --accent-text: #ffffff;
   
-  /* Scrollbar vars */
+  /* Scrollbar */
   --scrollbar-track: transparent;
   --scrollbar-thumb: #d4d4d8;
   --scrollbar-thumb-hover: #a1a1aa;
 }
 
-/* Dark Mode Overrides */
-.dark {
-  --bg-app: #09090b;       /* Zinc 950 (Sóbrio/Profundo) */
-  --bg-surface: #18181b;   /* Zinc 900 */
-  --bg-surface-hover: #27272a; /* Zinc 800 */
-  --border-subtle: #27272a; /* Zinc 800 */
+/* 4. Variáveis DARK MODE (Com seletor de alta especificidade) */
+:root.dark {
+  color-scheme: dark; /* CRUCIAL: Muda a renderização nativa do browser */
   
-  --text-main: #f4f4f5;    /* Zinc 100 */
-  --text-muted: #a1a1aa;   /* Zinc 400 */
+  --bg-app: #09090b;     /* Zinc 950 (Preto profundo) */
+  --bg-surface: #18181b; /* Zinc 900 */
+  --bg-surface-hover: #27272a; 
+  --border-subtle: #27272a; 
+  --input-bg: #000000;
   
-  --accent: #8b5cf6;       /* Violet 500 */
-  --accent-hover: #a78bfa; /* Violet 400 */
+  --text-main: #f4f4f5;    
+  --text-muted: #a1a1aa;   
+  
+  --accent: #8b5cf6;       /* Violet 500 (Mais claro para dark mode) */
+  --accent-hover: #a78bfa; 
   --accent-text: #ffffff;
   
-  /* Scrollbar vars Dark */
+  /* Scrollbar Dark */
   --scrollbar-thumb: #3f3f46;
   --scrollbar-thumb-hover: #52525b;
 }
 
-/* === 2. Reset e Base === */
+/* 5. Reset e Utilitários */
 body {
   background-color: var(--bg-app);
   color: var(--text-main);
-  @apply antialiased selection:bg-accent/30 selection:text-accent-text;
+  @apply antialiased transition-colors duration-300;
 }
 
-/* === 3. Componentes Reutilizáveis (Limpeza do HTML) === */
 @layer components {
-  /* Navbar Estilizada */
+  /* Navbar */
   .app-navbar {
     @apply h-16 bg-bg-surface/80 backdrop-blur-md border-b border-border-subtle flex items-center px-6 justify-between sticky top-0 z-40 transition-colors duration-300;
+  }
+
+  /* Input Surface - Corrigido */
+  .input-surface {
+    @apply w-full bg-white dark:bg-black/40 border border-gray-200 dark:border-white/10 text-text-main placeholder:text-text-muted focus:border-accent focus:ring-1 focus:ring-accent outline-none transition-all;
   }
 
   /* Logotipo */
@@ -75,17 +99,18 @@ body {
     @apply font-bold text-xl text-text-main tracking-wider flex items-center gap-2;
   }
   .app-logo-accent {
-    @apply text-accent drop-shadow-[0_0_8px_rgba(139,92,246,0.4)]; /* Glow sutil */
+    @apply text-accent drop-shadow-[0_0_8px_rgba(139,92,246,0.4)];
   }
 
-  /* Botões Base */
+  /* Botões */
   .btn {
     @apply flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-all duration-200 cursor-pointer active:scale-95;
   }
 
-  /* Variantes de Botões */
-  .btn-ghost {
-    @apply text-text-muted hover:text-text-main hover:bg-bg-surface-hover border border-transparent;
+  .btn-primary {
+    background-color: var(--accent);
+    color: var(--accent-text);
+    @apply hover:brightness-110 shadow-[0_0_15px_-3px_rgba(124,58,237,0.3)] border border-white/10;
   }
 
   .btn-secondary {

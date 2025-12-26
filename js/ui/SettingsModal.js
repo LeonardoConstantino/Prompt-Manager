@@ -31,77 +31,142 @@ export default class SettingsModal {
     const prefs = this.currentConfig.preferences || {};
     const fontSize = prefs.editorFontSize || 14;
     const theme = prefs.theme || 'dark';
+
+    // Gerador de Links (Click-to-Run)
     const linksHtml = this.currentConfig.clickToRun
       .map(
         (link, index) => `
-        <div class="flex gap-2 items-center mb-2">
-            <input type="text" value="${link.name}" data-idx="${index}" class="link-name w-1/3 bg-gray-900 border border-gray-600 rounded p-2 text-sm text-white" placeholder="Nome">
-            <input type="text" value="${link.url}" data-idx="${index}" class="link-url flex-1 bg-gray-900 border border-gray-600 rounded p-2 text-sm text-gray-300 font-mono" placeholder="https://...">
-            <button class="btn-remove-link text-red-400 hover:text-red-300 p-1" data-idx="${index}">✕</button>
+        <div class="group flex gap-3 items-center mb-3 animate-fade-in-up" style="animation-delay: ${
+          index * 50
+        }ms" data-idx-container="${index}">
+            <!-- Input Nome -->
+            <div class="relative w-1/3">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-muted">
+                    ${getIcon('tag', 'w-3 h-3')}
+                </div>
+                <input type="text" value="${link.name}" data-idx="${index}" 
+                    class="link-name input-surface w-full pl-9 h-9 text-xs font-medium rounded-lg" 
+                    placeholder="Nome">
+            </div>
+
+            <!-- Input URL -->
+            <div class="relative flex-1">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-muted">
+                    ${getIcon('external-link', 'w-3 h-3')}
+                </div>
+                <input type="text" value="${link.url}" data-idx="${index}" 
+                    class="link-url input-surface w-full pl-9 h-9 text-xs font-mono text-text-muted rounded-lg" 
+                    placeholder="https://...">
+            </div>
+
+            <!-- Botão Remover -->
+            <button class="btn-remove-link p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors" data-idx="${index}" title="Remover">
+                ${getIcon('close', 'w-4 h-4')}
+            </button>
         </div>
     `
       )
       .join('');
 
     const content = `
-      <div class="space-y-6">
-        <!-- Tema -->
+      <div class="space-y-8 p-1">
+        
+        <!-- SEÇÃO: TEMA -->
         <div>
-          <h4 class="text-sm font-bold text-gray-300 uppercase tracking-wide mb-3">Aparência</h4>
-          <div class="flex gap-4">
-            <label class="cursor-pointer">
+          <h4 class="text-[10px] uppercase font-bold text-text-muted tracking-widest mb-4 flex items-center gap-2">
+            ${getIcon('eye', 'w-3 h-3')} Aparência
+          </h4>
+          
+          <div class="grid grid-cols-2 gap-4">
+            <!-- Card Dark -->
+            <label class="cursor-pointer group relative">
               <input type="radio" name="theme" value="dark" class="peer sr-only" ${
                 theme === 'dark' ? 'checked' : ''
               }>
-              <div class="w-32 p-3 rounded-lg border border-gray-600 bg-gray-800 peer-checked:border-blue-500 peer-checked:ring-1 peer-checked:ring-blue-500 transition-all text-center">
-                <div class="text-gray-200 font-medium">Escuro</div>
+              <div class="h-20 rounded-xl border border-border-subtle bg-zinc-900 peer-checked:border-accent peer-checked:ring-2 peer-checked:ring-accent peer-checked:ring-offset-2 peer-checked:ring-offset-bg-surface transition-all overflow-hidden flex flex-col justify-end p-3 hover:border-accent/50">
+                <!-- Miniatura UI -->
+                <div class="absolute top-3 left-3 right-3 h-2 bg-zinc-800 rounded-full opacity-50"></div>
+                <div class="absolute top-7 left-3 w-1/2 h-2 bg-zinc-800 rounded-full opacity-30"></div>
+                <span class="text-sm font-bold text-white relative z-10 flex items-center gap-2">
+                    ${
+                      theme === 'dark'
+                        ? getIcon('check-circle', 'w-4 h-4 text-accent')
+                        : ''
+                    } Escuro
+                </span>
               </div>
             </label>
             
-            <label class="cursor-pointer">
+            <!-- Card Light -->
+            <label class="cursor-pointer group relative">
               <input type="radio" name="theme" value="light" class="peer sr-only" ${
                 theme === 'light' ? 'checked' : ''
               }>
-              <div class="w-32 p-3 rounded-lg border border-gray-600 bg-gray-200 peer-checked:border-blue-500 peer-checked:ring-1 peer-checked:ring-blue-500 transition-all text-center">
-                <div class="text-gray-800 font-medium">Claro</div>
+              <div class="h-20 rounded-xl border border-border-subtle bg-zinc-100 peer-checked:border-accent peer-checked:ring-2 peer-checked:ring-accent peer-checked:ring-offset-2 peer-checked:ring-offset-bg-surface transition-all overflow-hidden flex flex-col justify-end p-3 hover:border-accent/50">
+                <!-- Miniatura UI -->
+                <div class="absolute top-3 left-3 right-3 h-2 bg-white border border-gray-200 rounded-full opacity-50"></div>
+                <div class="absolute top-7 left-3 w-1/2 h-2 bg-white border border-gray-200 rounded-full opacity-50"></div>
+                <span class="text-sm font-bold text-zinc-900 relative z-10 flex items-center gap-2">
+                    ${
+                      theme === 'light'
+                        ? getIcon('check-circle', 'w-4 h-4 text-accent')
+                        : ''
+                    } Claro
+                </span>
               </div>
             </label>
           </div>
-          <p class="text-xs text-gray-500 mt-2">Nota: O modo claro requer ajustes nas classes CSS do Tailwind.</p>
         </div>
 
-        <!-- Fonte -->
+        <!-- SEÇÃO: FONTE -->
         <div>
-          <h4 class="text-sm font-bold text-gray-300 uppercase tracking-wide mb-3">Editor e Leitura</h4>
-          <div class="flex items-center gap-4">
-            <span class="text-xs text-gray-400">Aa</span>
-            <input type="range" id="font-size-range" min="12" max="24" step="1" value="${fontSize}" 
-              class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
-            <span class="text-xs text-gray-400 text-xl">Aa</span>
-          </div>
-          <div class="flex justify-between mt-2">
-            <span class="text-xs text-gray-500">Tamanho atual: <span id="font-size-display" class="font-bold text-blue-400">${fontSize}px</span></span>
+          <h4 class="text-[10px] uppercase font-bold text-text-muted tracking-widest mb-4 flex items-center gap-2">
+            ${getIcon('edit', 'w-3 h-3')} Tipografia do Editor
+          </h4>
+          
+          <div class="bg-bg-app rounded-xl p-4 border border-border-subtle">
+              <div class="flex items-center gap-4 mb-2">
+                <span class="text-xs text-text-muted font-medium">Aa</span>
+                <!-- Range Slider com Accent Color -->
+                <input type="range" id="font-size-range" min="12" max="24" step="1" value="${fontSize}" 
+                  class="w-full h-1.5 bg-border-subtle rounded-lg appearance-none cursor-pointer accent-accent hover:accent-accent-hover transition-all">
+                <span class="text-lg text-text-main font-bold">Aa</span>
+              </div>
+              
+              <div class="flex justify-between items-center mt-2">
+                <span class="text-xs text-text-muted">Tamanho da fonte</span>
+                <span id="font-size-display" class="text-xs font-mono font-bold text-accent bg-accent/10 px-2 py-0.5 rounded">${fontSize}px</span>
+              </div>
           </div>
         </div>
 
-        <!-- Seção Click-to-Run -->
-        <div class="pt-4 border-t border-gray-700">
-            <h4 class="text-sm font-bold text-gray-300 uppercase tracking-wide mb-3">Integrações (Click-to-Run)</h4>
-            <p class="text-xs text-gray-500 mb-3">Defina links para abrir após copiar o prompt.</p>
-            
-            <div id="links-container">
-                ${linksHtml}
+        <!-- SEÇÃO: INTEGRAÇÕES -->
+        <div class="pt-2">
+            <div class="flex justify-between items-center mb-4">
+                <h4 class="text-[10px] uppercase font-bold text-text-muted tracking-widest flex items-center gap-2">
+                    ${getIcon('external-link', 'w-3 h-3')} Integrações (Click-to-Run)
+                </h4>
+                <button id="btn-add-link" class="text-[10px] font-bold text-accent hover:text-accent-hover hover:underline flex items-center gap-1 transition-colors">
+                    ${getIcon('plus', 'w-3 h-3')} ADICIONAR
+                </button>
             </div>
             
-            <button id="btn-add-link" class="mt-2 text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
-                ${getIcon('plus', 'w-4 h-4')}
-                <span>Adicionar Integração</span>
-            </button>
+            <p class="text-xs text-text-muted mb-4 leading-relaxed bg-bg-app p-3 rounded-lg border border-border-subtle">
+                Configure URLs externas que podem receber o conteúdo do prompt. Use para abrir diretamente no ChatGPT, MidJourney Web, etc.
+            </p>
+            
+            <div id="links-container" class="space-y-1">
+                ${
+                  linksHtml.length
+                    ? linksHtml
+                    : '<div class="text-center text-xs text-text-muted py-4 italic opacity-50">Nenhuma integração configurada</div>'
+                }
+            </div>
         </div>
 
-        <!-- Botão Salvar -->
-        <div class="pt-4 border-t border-gray-700">
-          <button id="btn-save-settings" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-medium transition-colors">
+        <!-- RODAPÉ FIXO -->
+        <div class="pt-6 mt-4 border-t border-border-subtle">
+          <button id="btn-save-settings" class="btn btn-primary w-full justify-center shadow-lg shadow-accent/20 py-2.5">
             Salvar Preferências
           </button>
         </div>
@@ -109,7 +174,7 @@ export default class SettingsModal {
     `;
 
     eventBus.emit('modal:open', {
-      title: 'Configurações',
+      title: 'Configurações do Sistema',
       content: content,
     });
 
@@ -126,14 +191,32 @@ export default class SettingsModal {
 
     btnAdd.onclick = () => {
       const div = document.createElement('div');
-      div.className = 'flex gap-2 items-center mb-2';
+      div.className = 'group flex gap-3 items-center mb-3 animate-fade-in-up';
       div.innerHTML = `
-            <input type="text" class="link-name w-1/3 bg-gray-900 border border-gray-600 rounded p-2 text-sm text-white" placeholder="Nome">
-            <input type="text" class="link-url flex-1 bg-gray-900 border border-gray-600 rounded p-2 text-sm text-gray-300 font-mono" placeholder="https://...">
-            <button class="btn-remove-link text-red-400 hover:text-red-300 p-1">${getIcon(
-              'close',
-              'w-4 h-4'
-            )}</button>
+            <!-- Input Nome -->
+            <div class="relative w-1/3">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-muted">
+                    ${getIcon('tag', 'w-3 h-3')}
+                </div>
+                <input type="text" data-idx="${linksContainer.children.length}" 
+                    class="link-name input-surface w-full pl-9 h-9 text-xs font-medium rounded-lg" 
+                    placeholder="Nome">
+            </div>
+
+            <!-- Input URL -->
+            <div class="relative flex-1">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-text-muted">
+                    ${getIcon('external-link', 'w-3 h-3')}
+                </div>
+                <input type="text" data-idx="${linksContainer.children.length}" 
+                    class="link-url input-surface w-full pl-9 h-9 text-xs font-mono text-text-muted rounded-lg" 
+                    placeholder="https://...">
+            </div>
+
+            <!-- Botão Remover -->
+            <button class="btn-remove-link p-2 text-text-muted hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors" data-idx="${linksContainer.children.length}" title="Remover">
+                ${getIcon('close', 'w-4 h-4')}
+            </button>
         `;
 
       // Remove handler for new item
@@ -143,14 +226,19 @@ export default class SettingsModal {
 
     // Remove handlers for existing items
     modal.querySelectorAll('.btn-remove-link').forEach((btn) => {
-      btn.onclick = (e) => e.target.parentElement.remove();
+      btn.onclick = (e) => e.target.closest('div[data-idx-container]').remove();
     });
 
     // Live Preview do número
     range.oninput = (e) => {
       display.textContent = `${e.target.value}px`;
+      
+      const preview = modal.querySelector('#font-size-display');
+      preview.style.fontSize = `${e.target.value}px`;
+
+
       // Opcional: Aplicar preview em tempo real emitindo evento
-      eventBus.emit('settings:preview-font', e.target.value);
+      // eventBus.emit('settings:preview-font', e.target.value);
     };
 
     saveBtn.onclick = () => {
@@ -175,8 +263,6 @@ export default class SettingsModal {
       });
 
       eventBus.emit('modal:close', {});
-
-      toast.show('Preferências salvas com sucesso!', 'success');
     };
   }
 }

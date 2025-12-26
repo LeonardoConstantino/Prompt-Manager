@@ -4,7 +4,7 @@
  */
 
 class EventBus {
-  constructor(options = {maxListeners: 10, debug: false}) {
+  constructor(options = {maxListeners: 35, debug: false}) {
     /**
      * @type {Map<string, Set<Function>>} Eventos registrados
      */
@@ -13,7 +13,7 @@ class EventBus {
     /**
      * @type {number} Limite de listeners por evento
      */
-    this.maxListeners = options.maxListeners || 10;
+    this.maxListeners = options.maxListeners || 35;
     
     /**
      * @type {boolean} Modo debug
@@ -194,4 +194,4 @@ class EventBus {
 export const createEventBus = (options) => new EventBus(options);
 
 // Exporta instância global padrão
-export default new EventBus({debug: true});
+export default new EventBus({debug: false});
