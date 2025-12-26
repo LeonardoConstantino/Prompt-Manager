@@ -58,7 +58,7 @@ export default class VariableFiller {
             name="${v.id}" 
             rows="2" 
             placeholder="Digite o valor para [${v.label}]..."
-            class="input-surface w-full p-3 rounded-lg text-sm resize-y min-h-[80px] custom-scrollbar"
+            class="input-surface w-full p-3 rounded-lg text-sm resize-y min-h-20 custom-scrollbar"
         ></textarea>
       </div>
     `).join('');

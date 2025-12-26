@@ -28,7 +28,7 @@ export default class GlobalLoader {
       <!-- Barra com Glow do Accent -->
       <div id="global-progress-bar" class="h-full bg-accent shadow-[0_0_15px_2px_var(--accent)] w-0 transition-all duration-300 ease-out">
         <!-- Partícula brilhante na ponta da barra (opcional, dá um toque fluido) -->
-        <div class="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white/50 to-transparent transform translate-x-full"></div>
+        <div class="absolute right-0 top-0 bottom-0 w-20 bg-linear-to-l from-white/50 to-transparent transform translate-x-full"></div>
       </div>
     `;
     document.body.appendChild(this.progressContainer);

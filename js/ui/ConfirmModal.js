@@ -25,7 +25,7 @@ class ConfirmModal {
           
           <div class="flex items-start gap-5">
             <!-- Ícone Dinâmico (Círculo de Alerta) -->
-            <div id="confirm-icon-wrapper" class="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center">
+            <div id="confirm-icon-wrapper" class="shrink-0 w-12 h-12 rounded-full flex items-center justify-center">
                <!-- Ícone injetado via JS -->
             </div>
             

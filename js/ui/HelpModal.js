@@ -36,7 +36,7 @@ export default class HelpModal {
         </div>
 
         <!-- Seção: Dicas Pro (Banner Estilizado) -->
-        <div class="relative overflow-hidden rounded-xl border border-accent/20 bg-gradient-to-r from-accent/10 to-transparent p-5">
+        <div class="relative overflow-hidden rounded-xl border border-accent/20 bg-linear-to-r from-accent/10 to-transparent p-5">
             <div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                 ${getIcon('lightbulb', 'w-24 h-24')}
             </div>
