@@ -54,7 +54,7 @@ class App {
       // Se der erro fatal no boot, removemos o loader para mostrar o erro
       eventBus.emit('app:loading:end', { type: 'boot' });
       console.error('Initialization failed:', error);
-      document.body.innerHTML = `<div class="p-4 text-red-500">Erro fatal: ${error.message}</div>`;
+      this.renderFatalError(error);
     }
   }
 
@@ -432,6 +432,90 @@ class App {
     // Ordenar por updated mais recente
     prompts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
     this.promptList.setPrompts(prompts);
+  }
+
+  /**
+   * Renderiza uma tela de erro fatal personalizada
+   * @param {Error} err O erro a ser exibido
+   */
+  renderFatalError(err) {
+    // Tenta pegar a mensagem de forma segura
+    const msg = err?.message || String(err) || 'Erro desconhecido';
+    const stack = err?.stack || '';
+
+    // Ícone de Alerta (Inline SVG para não depender do helper de ícones que pode ter falhado)
+    const alertIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-500"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
+
+    document.body.innerHTML = `
+      <div class="h-screen w-screen bg-[#09090b] text-[#e4e4e7] flex items-center justify-center p-6 font-sans antialiased overflow-hidden relative selection:bg-red-500/30">
+        
+        <!-- Background Noise/Glow (Decorativo) -->
+        <div class="absolute top-[-20%] left-[-10%] w-125 h-125 bg-red-900/20 rounded-full blur-[120px] pointer-events-none"></div>
+        <div class="absolute bottom-[-20%] right-[-10%] w-125 h-125 bg-purple-900/30 rounded-full blur-[120px] pointer-events-none"></div>
+
+        <!-- Card de Erro -->
+        <div class="relative max-w-lg w-full bg-[#18181b] border border-[#27272a] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-fade-in-up">
+            
+            <!-- Barra de Topo com Gradiente de Perigo -->
+            <div class="h-1.5 w-full bg-linear-to-r from-red-600 via-orange-500 to-red-600"></div>
+
+            <div class="p-8">
+                <!-- Cabeçalho -->
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="p-3 bg-red-500/10 rounded-xl border border-red-500/20 shadow-[0_0_15px_-5px_rgba(239,68,68,0.5)]">
+                        ${alertIcon}
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold tracking-tight text-white">Falha Crítica</h1>
+                        <p class="text-sm text-[#a1a1aa]">O sistema encontrou um erro irrecuperável.</p>
+                    </div>
+                </div>
+
+                <!-- Caixa de Código do Erro -->
+                <div class="bg-black rounded-lg border border-red-900/30 p-4 mb-6 overflow-x-auto relative group">
+                    <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                         <span class="text-[10px] text-red-400 font-mono uppercase bg-red-900/50 px-2 py-0.5 rounded">Log</span>
+                    </div>
+                    <code class="block font-mono text-xs text-red-400 wrap-break-word leading-relaxed">
+                        <span class="select-all">${msg}</span>
+                    </code>
+                    ${
+                      stack
+                        ? `<details class="mt-2"><summary class="text-[10px] text-[#52525b] cursor-pointer hover:text-[#a1a1aa] transition-colors list-none">Ver Stack Trace</summary><pre class="mt-2 text-[10px] text-[#52525b] whitespace-pre-wrap select-all">${stack}</pre></details>`
+                        : ''
+                    }
+                </div>
+
+                <!-- Botões de Ação -->
+                <div class="flex flex-col gap-3">
+                    <button onclick="window.location.reload()" 
+                        class="w-full py-3 bg-white text-black text-sm font-bold rounded-lg hover:bg-[#d4d4d8] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path fill="currentColor" d="M12 20q-3.35 0-5.675-2.325T4 12q0-3.35 2.325-5.675T12 4q1.725 0 3.3.712T18 6.75V4h2v7h-7V9h4.2q-.8-1.4-2.188-2.2T12 6Q9.5 6 7.75 7.75T6 12q0 2.5 1.75 4.25T12 18q1.925 0 3.475-1.1T17.65 14h2.1q-.7 2.65-2.85 4.325T12 20Z"/></svg>
+                        Reiniciar Aplicação
+                    </button>
+                    
+                    <div class="flex gap-3">
+                         <button onclick="navigator.clipboard.writeText(\`${msg}\\n\\n${stack}\`).then(() => this.innerText = 'Copiado!')" 
+                            class="flex-1 py-2.5 bg-[#27272a] text-[#a1a1aa] text-xs font-medium rounded-lg border border-[#3f3f46] hover:text-white hover:border-[#52525b] transition-all">
+                            Copiar Relatório
+                        </button>
+                        <button onclick="localStorage.clear(); window.location.reload()" 
+                            class="flex-1 py-2.5 bg-[#27272a] text-[#a1a1aa] text-xs font-medium rounded-lg border border-[#3f3f46] hover:text-red-400 hover:border-red-900/50 transition-all" title="Use se reiniciar não resolver">
+                            Resetar Dados Locais
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Rodapé Técnico -->
+            <div class="bg-[#0f0f11] p-3 text-center border-t border-[#27272a]">
+                <p class="text-[10px] text-[#3f3f46] font-mono">
+                    Prompt Manager v1.0 &bull; Deep Nebula UI
+                </p>
+            </div>
+        </div>
+      </div>
+    `;
   }
 }
 
