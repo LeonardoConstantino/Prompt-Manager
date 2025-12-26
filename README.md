@@ -6,7 +6,7 @@
 
 **Uma aplicação elegante e minimalista para gerenciar, versionar e organizar seus prompts de IA**
 
-[🚀 Live Demo](#) • [📖 Documentação](#recursos) • [🎯 Guia Rápido](#guia-rápido)
+[🚀 Live Demo](https://leonardoconstantino.github.io/Prompt-Manager/) • [📖 Documentação](#recursos) • [🎯 Guia Rápido](#guia-rápido)
 
 [![Made with Love](https://img.shields.io/badge/Made%20with-❤️-red.svg)](https://github.com/LeonardoConstantino/prompt-manager)
 [![Vanilla JS](https://img.shields.io/badge/Vanilla-JS-yellow.svg)](https://developer.mozilla.org/en-US/docs/Web/JavaScript)
