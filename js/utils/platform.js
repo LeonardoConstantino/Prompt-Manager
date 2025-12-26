@@ -1,6 +1,7 @@
 export let metaKey = 'Ctrl'; // Label para exibição
 export let metaKeyName = 'Control'; // Nome para eventos de teclado (event.key)
 export let isMac = false;
+export let isMobile = false
 
 /**
  * Detecta o sistema operacional e ajusta as variáveis globais
@@ -24,3 +25,11 @@ export const detectOS = () => {
     }
   }
 };
+
+/**
+ * Verifica se o dispositivo atual é um dispositivo móvel.
+ */
+export const detectIsMobile = () => {
+  // Verifica se o user agent contém 'Mobi' ou 'Android' ou se a largura da janela é menor ou igual a 768 pixels.
+  isMobile = /Mobi|Android/i.test(navigator.userAgent) || window.innerWidth <= 768
+}

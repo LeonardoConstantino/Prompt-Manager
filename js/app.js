@@ -1,5 +1,5 @@
 import GlobalLoader from './ui/GlobalLoader.js';
-import { detectOS, isMac } from './utils/platform.js';
+import { detectOS, isMac, detectIsMobile, isMobile } from './utils/platform.js';
 import BackupManager from './core/BackupManager.js';
 import PromptRepository from './core/PromptRepository.js';
 import PromptList from './ui/PromptList.js';
@@ -17,6 +17,8 @@ import { toast } from './utils/Toast.js';
 class App {
   constructor() {
     detectOS();
+    detectIsMobile();
+    this.setupMobileMenu();
     // Componentes principais
     this.loader = new GlobalLoader();
     this.repository = new PromptRepository();
@@ -334,8 +336,8 @@ Produza **apenas a resposta final**, sem mencionar o processo interno.
     this.shortcuts.registerSequence(
       ['1', '2', '3', '4', '5', '6', '7', '8', '9', '1', '0'],
       (event, info) => {
-      console.log('info :', info);
-      console.log('event :', event);
+        console.log('info :', info);
+        console.log('event :', event);
 
         toast.show('Parabéns voce sabe contar!', 'info', 5000);
       },
@@ -351,7 +353,7 @@ Produza **apenas a resposta final**, sem mencionar o processo interno.
     );
 
     this.shortcuts.registerSequence(
-      ['m','e','m','e'],
+      ['m', 'e', 'm', 'e'],
       () => {
         this.togglememeTheme();
       },
@@ -359,7 +361,7 @@ Produza **apenas a resposta final**, sem mencionar o processo interno.
     );
 
     this.shortcuts.registerSequence(
-      ['c','o','d','e','p','r','o'],
+      ['c', 'o', 'd', 'e', 'p', 'r', 'o'],
       () => {
         this.togglCodeProMode();
       },
@@ -495,7 +497,7 @@ Produza **apenas a resposta final**, sem mencionar o processo interno.
     document.head.appendChild(style);
   }
 
-  togglememeTheme(){
+  togglememeTheme() {
     const ID = 'meme-theme-style';
     const existing = document.getElementById(ID);
 
@@ -511,19 +513,47 @@ Produza **apenas a resposta final**, sem mencionar o processo interno.
     toast.show('Divirta-se quem puder!', 'success', 5000);
     document.body.classList.add('meme-active');
     const style = document.createElement('style');
-    style.id = ID ;
+    style.id = ID;
     style.innerHTML = `
       body { /* Aplica a fonte aleatória */
-        font-family: ${['"Comic Sans MS"', '"Chalkboard"', '"Brush Script MT"', 'cursive', 'sans-serif'].sort(() => 0.5 - Math.random()).join(', ') } !important;
+        font-family: ${[
+          '"Comic Sans MS"',
+          '"Chalkboard"',
+          '"Brush Script MT"',
+          'cursive',
+          'sans-serif',
+        ]
+          .sort(() => 0.5 - Math.random())
+          .join(', ')} !important;
       }
 
       /* Sobrescreve o tema Deep Nebula */
       :root {
-          --meme-bg: ${['#f0f8ff', '#ffffe0', '#f0fff0', '#fff0f5', '#ffe4e1', '#fffafa'][Math.floor(Math.random() * 6)]}; /* Cores pastéis aleatórias */
-          --meme-bg-surface: ${['#f8f8ff', '#fffff0', '#f5fffa', '#fff0f5', '#fffafa', '#fffff0'][Math.floor(Math.random() * 6)]};
-          --meme-text-main: ${['#00008b', '#8b0000', '#006400', '#800080', '#4b0082'][Math.floor(Math.random() * 5)]}; /* Cores de texto berrantes */
-          --meme-text-muted: ${['#556b2f', '#a0522d', '#8b4513', '#6a5acd'][Math.floor(Math.random() * 4)]};
-          --meme-accent: ${['#FF1493', '#FFD700', '#00CED1', '#DA70D6', '#32CD32'][Math.floor(Math.random() * 5)]}; /* Cores de destaque mal combinadas */
+          --meme-bg: ${
+            ['#f0f8ff', '#ffffe0', '#f0fff0', '#fff0f5', '#ffe4e1', '#fffafa'][
+              Math.floor(Math.random() * 6)
+            ]
+          }; /* Cores pastéis aleatórias */
+          --meme-bg-surface: ${
+            ['#f8f8ff', '#fffff0', '#f5fffa', '#fff0f5', '#fffafa', '#fffff0'][
+              Math.floor(Math.random() * 6)
+            ]
+          };
+          --meme-text-main: ${
+            ['#00008b', '#8b0000', '#006400', '#800080', '#4b0082'][
+              Math.floor(Math.random() * 5)
+            ]
+          }; /* Cores de texto berrantes */
+          --meme-text-muted: ${
+            ['#556b2f', '#a0522d', '#8b4513', '#6a5acd'][
+              Math.floor(Math.random() * 4)
+            ]
+          };
+          --meme-accent: ${
+            ['#FF1493', '#FFD700', '#00CED1', '#DA70D6', '#32CD32'][
+              Math.floor(Math.random() * 5)
+            ]
+          }; /* Cores de destaque mal combinadas */
           --meme-border-subtle: var(--meme-accent);
           --meme-input-bg: #fff; /* Inputs brancos para contrate berrante */
       }
@@ -633,7 +663,7 @@ Produza **apenas a resposta final**, sem mencionar o processo interno.
     toast.show('CodePro Mode ativado!', 'success', 5000);
     document.body.classList.add('codepro-active');
     const style = document.createElement('style');
-    style.id = ID ;
+    style.id = ID;
     style.innerHTML = `
       /* Sobrescrive o tema Deep Nebula */
       :root {
@@ -1150,6 +1180,48 @@ Produza **apenas a resposta final**, sem mencionar o processo interno.
         </div>
       </div>
     `;
+  }
+
+  setupMobileMenu() {
+    const btn = document.getElementById('mobile-menu-btn');
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    const viewer = document.getElementById('viewer'); // Opcional, para gestos
+
+    const toggleMenu = (forceClose = false) => {
+      const isClosed = sidebar.classList.contains('-translate-x-full');
+
+      if (isClosed && !forceClose) {
+        // ABRIR
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+        // Pequeno delay para permitir transição de opacidade do CSS
+        setTimeout(() => backdrop.classList.remove('opacity-0'), 10);
+      } else {
+        // FECHAR
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('opacity-0');
+        setTimeout(() => backdrop.classList.add('hidden'), 300); // Espera a animação
+      }
+    };
+
+    // 1. Botão Hambúrguer
+    if (btn) btn.onclick = () => toggleMenu();
+
+    // 2. Clicar no fundo escuro fecha o menu
+    if (backdrop) backdrop.onclick = () => toggleMenu(true);
+
+    // 3. (CRUCIAL) Ao selecionar um item na lista da sidebar, fecha o menu
+    // Vamos usar 'event delegation' no sidebar para pegar cliques em itens
+    sidebar.addEventListener('click', (e) => {
+      // Se clicou em algo que parece um item de prompt (ajuste o seletor conforme seu HTML gerado)
+      if (e.target.closest('.group') || e.target.closest('div[data-id]')) {
+        // Só fecha se estivermos no mobile (checando se o botão mobile está visível)
+        if (window.getComputedStyle(btn).display !== 'none') {
+          toggleMenu(true);
+        }
+      }
+    });
   }
 }
 

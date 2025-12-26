@@ -25,6 +25,23 @@
   <body class="h-screen w-screen overflow-hidden flex flex-col">
     <!-- Navbar: Classes limpas via .app-navbar -->
     <nav class="app-navbar">
+      <!-- Botão Mobile (Só aparece em telas pequenas: md:hidden) -->
+      <button id="mobile-menu-btn" class="btn-icon md:hidden mr-1">
+        <svg
+          class="w-6 h-6"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 6h16M4 12h16M4 18h16"
+          ></path>
+        </svg>
+      </button>
+
       <div class="flex items-center gap-3">
         <!-- Ícone do Logo: Agora usa text-accent -->
         <svg
@@ -140,11 +157,21 @@
     </nav>
 
     <!-- Main Layout -->
-    <div class="flex-1 flex overflow-hidden">
+    <div class="flex-1 flex overflow-hidden relative">
+      <!-- 1. BACKDROP (Fundo escuro mobile) -->
+      <!-- Inicialmente escondido. Controlado via JS. -->
+      <div id="sidebar-backdrop" 
+          class="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 hidden md:hidden transition-opacity duration-300 opacity-0">
+      </div>
+
       <!-- Sidebar: Fundo ajustado para superfície (ligeiramente mais claro que o main no dark mode) -->
       <aside
         id="sidebar"
-        class="w-1/4 min-w-[250px] max-w-sm h-full bg-bg-surface border-r border-border-subtle"
+        class="absolute md:relative z-40 inset-y-0 left-0 
+           w-3/4 max-w-75 md:w-1/4 md:max-w-sm h-full 
+           bg-bg-surface border-r border-border-subtle 
+           transform -translate-x-full md:translate-x-0 
+           transition-transform duration-300 ease-in-out shadow-2xl md:shadow-none"
       >
         <!-- Conteúdo da Sidebar é dinâmico -->
       </aside>
