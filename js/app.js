@@ -1,4 +1,5 @@
 import GlobalLoader from './ui/GlobalLoader.js';
+import { detectOS, isMac } from './utils/platform.js';
 import BackupManager from './core/BackupManager.js';
 import PromptRepository from './core/PromptRepository.js';
 import PromptList from './ui/PromptList.js';
@@ -10,14 +11,22 @@ import SettingsModal from './ui/SettingsModal.js';
 import HelpModal from './ui/HelpModal.js';
 import { confirmModal } from './ui/ConfirmModal.js';
 import eventBus from './utils/eventBus.js';
+import KeyboardShortcutManager from './lib/KeyboardShortcutManager.js';
 import { toast } from './utils/Toast.js';
 
 class App {
   constructor() {
+    detectOS();
     // Componentes principais
     this.loader = new GlobalLoader();
     this.repository = new PromptRepository();
     this.backupManager = new BackupManager();
+    // Instancia o Gerenciador de Atalhos
+    this.shortcuts = new KeyboardShortcutManager({
+      debug: false,
+      enableSequences: true,
+      enableLongPress: true,
+    });
 
     // Instancia Componentes
     this.promptList = new PromptList('sidebar');
@@ -76,70 +85,679 @@ class App {
   }
 
   setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-      // Ignora atalhos se o foco estiver em inputs (exceto atalhos globais com Ctrl/Cmd)
-      const isInputFocused = ['INPUT', 'TEXTAREA'].includes(
-        document.activeElement.tagName
-      );
-      const isCtrlOrMeta = e.ctrlKey || e.metaKey;
+    this.shortcuts.init();
+    const metaKey = isMac ? 'meta' : 'ctrl';
 
-      // --- ATALHOS GLOBAIS (Funcionam sempre) ---
+    // --- 1. CRUD & ARQUIVO ---
 
-      // Ctrl/Cmd + N: Novo Prompt
-      if (isCtrlOrMeta && e.key.toLowerCase() === 'n') {
-        e.preventDefault();
-        eventBus.emit('prompt:create');
-      }
+    // Novo Prompt (Ctrl+N ou Cmd+N)
+    const newPromptHandler = (e) => {
+      e.preventDefault();
+      eventBus.emit('prompt:create');
+    };
+    this.shortcuts.register(`${metaKey}+n`, newPromptHandler, {
+      description: 'Novo Prompt',
+    });
 
-      // Ctrl/Cmd + S: Salvar (Apenas se editor estiver aberto)
-      if (isCtrlOrMeta && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        // Emite evento genérico, o componente decide se salva
-        eventBus.emit('ui:trigger-save');
-      }
+    // Salvar (Ctrl+S ou Cmd+S)
+    const saveHandler = (e) => {
+      e.preventDefault();
+      eventBus.emit('ui:trigger-save');
+    };
+    this.shortcuts.register(`${metaKey}+s`, saveHandler, {
+      description: 'Salvar',
+    });
 
-      // Ctrl/Cmd + K ou /: Focar na Busca
-      if (
-        (isCtrlOrMeta && e.key.toLowerCase() === 'k') ||
-        (!isInputFocused && e.key === '/')
-      ) {
-        e.preventDefault();
-        eventBus.emit('ui:focus-search');
-      }
+    // --- 2. NAVEGAÇÃO & UI ---
 
-      // Escape: Cancelar/Fechar
-      if (e.key === 'Escape') {
-        // Prioridade: Fechar Modais > Fechar Editor > Limpar Busca
+    // Focar Busca (Ctrl+K, Cmd+K ou /)
+    const searchHandler = (e) => {
+      e.preventDefault();
+      eventBus.emit('ui:focus-search');
+    };
+    this.shortcuts.register(`${metaKey}+k`, searchHandler, {
+      description: 'Focar Busca',
+    });
+    this.shortcuts.register('/', searchHandler, {
+      context: 'no-input', // Só funciona se não estiver digitando
+      description: 'Focar Busca',
+    });
+
+    // Cancelar / Fechar (Esc)
+    this.shortcuts.register(
+      'escape',
+      () => {
         eventBus.emit('modal:close');
         eventBus.emit('editor:cancel');
-        document.activeElement.blur(); // Tira foco de inputs
-      }
+        document.activeElement.blur();
+      },
+      { description: 'Fechar Modais' }
+    );
 
-      // --- ATALHOS DE CONTEXTO (Apenas se não estiver digitando) ---
-      if (!isInputFocused) {
-        // Ctrl/Cmd + E: Editar prompt selecionado
-        if (isCtrlOrMeta && e.key.toLowerCase() === 'e') {
-          e.preventDefault();
-          // Pega o ID do prompt atualmente selecionado na lista (precisamos expor isso ou pedir à lista)
-          eventBus.emit('ui:trigger-edit');
-        }
+    //"Zen Mode" (Modo Foco)
+    this.shortcuts.register(
+      '\\',
+      () => {
+        const nav = document.querySelector('.app-navbar');
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('hidden');
+        nav.classList.toggle('hidden');
 
-        // Setas: Navegação na Lista
-        if (e.key === 'ArrowDown') {
-          e.preventDefault();
-          eventBus.emit('ui:navigate-list', { direction: 'next' });
-        }
-        if (e.key === 'ArrowUp') {
-          e.preventDefault();
-          eventBus.emit('ui:navigate-list', { direction: 'prev' });
-        }
+        // Feedback visual (Toast rápido)
+        const isHidden = sidebar.classList.contains('hidden');
+        toast.show(
+          isHidden ? 'Modo Zen: Ativado' : 'Modo Zen: Desativado',
+          'info',
+          1500
+        );
+      },
+      { description: 'Alternar Modo Foco' }
+    );
 
-        // Delete: Apagar prompt selecionado
-        if (e.key === 'Delete') {
-          eventBus.emit('ui:trigger-delete');
-        }
-      }
+    // --- 3. CONTEXTO DE ITEM (Só funciona se não estiver digitando) ---
+
+    // Editar (Ctrl+E)
+    this.shortcuts.register(
+      `${metaKey}+e`,
+      (e) => {
+        e.preventDefault();
+        eventBus.emit('ui:trigger-edit');
+      },
+      { context: 'no-input', description: 'Editar Prompt' }
+    );
+
+    // Navegação (Setas)
+    this.shortcuts.register(
+      'arrowdown',
+      (e) => {
+        e.preventDefault();
+        eventBus.emit('ui:navigate-list', { direction: 'next' });
+      },
+      { context: 'no-input', description: 'Navegar para baixo' }
+    );
+
+    this.shortcuts.register(
+      'arrowup',
+      (e) => {
+        e.preventDefault();
+        eventBus.emit('ui:navigate-list', { direction: 'prev' });
+      },
+      { context: 'no-input', description: 'Navegar para cima' }
+    );
+
+    // Deletar (Delete)
+    this.shortcuts.register(
+      'delete',
+      () => {
+        eventBus.emit('ui:trigger-delete');
+      },
+      { context: 'no-input', description: 'Deletar Prompt' }
+    );
+
+    // --- 4. EASTER EGGS 🐰🥚 ---
+
+    // Konami Code -> Ativa Modo Matrix
+    this.shortcuts.registerKonamiCode(() => {
+      this.toggleMatrixMode();
     });
+
+    this.shortcuts.registerFibonacciSequence(() => {
+      const prompt = {
+        name: 'PROMPT UNIVERSAL ONESHOT (GENÉRICO · PODEROSO · CROSS-LLM)',
+        content: `Você é {{papel: especialista ou função desejada}}.
+
+OBJETIVO PRINCIPAL:
+{{tarefa: o que deve ser feito em uma frase}}
+
+CONTEXTO ESSENCIAL:
+{{contexto: informações mínimas relevantes ou "nenhum"}}
+
+RESTRIÇÕES E CRITÉRIOS:
+{{restrições: limites, público-alvo, tom, formato ou "nenhuma"}}
+
+FORMATO DA RESPOSTA:
+{{formato: texto, lista, passos, Markdown, JSON, tabela, etc.}}
+
+---
+
+PROTOCOLO DE EXECUÇÃO (Progressão Fibonacci):
+
+[1] COMPREENSÃO  
+Entenda completamente o objetivo e o contexto.
+
+[1] DEFINIÇÃO  
+Identifique requisitos, restrições e critérios de sucesso.
+
+[2] DECOMPOSIÇÃO  
+Quebre o problema em partes lógicas e gerenciáveis.
+
+[3] EXPLORAÇÃO  
+Avalie múltiplas abordagens, soluções ou perspectivas possíveis.
+
+[5] SÍNTESE E VALIDAÇÃO  
+Integre a melhor solução, valide precisão, coerência e alinhamento com o pedido, e refine para máxima clareza e utilidade.
+
+---
+
+CONTROLES DE QUALIDADE:
+- Não invente informações.
+- Declare incertezas explicitamente.
+- Evite vieses desnecessários.
+- Priorize clareza, utilidade e objetividade.
+
+AUTO-VERIFICAÇÃO FINAL:
+✔ Objetivo atendido  
+✔ Restrições respeitadas  
+✔ Formato correto  
+✔ Resposta adequada ao público-alvo  
+
+Produza **apenas a resposta final**, sem mencionar o processo interno.
+`,
+        description:
+          'Um PROMPT ONESHOT UNIVERSAL, projetado para qualquer LLM, com arquitetura modular implícita, variáveis mínimas, alto poder de generalização e pronto para qualquer tipo de tarefa (análise, criação, decisão, código, estratégia, texto, etc.).',
+        isFavorite: true,
+        tags: ['genérico', 'oneshot', 'cross llm', 'Fibonacci Egg'],
+      };
+
+      const content = `
+  <div class="flex flex-col items-center text-center space-y-6 animate-fade-in p-2">
+    
+    <!-- Ícone Animado (Cor Dourada/Amber para representar Ouro/Raro) -->
+    <div class="relative">
+        <div class="absolute inset-0 bg-amber-500/20 rounded-full blur-xl animate-pulse"></div>
+        <div class="relative p-4 bg-bg-app rounded-full border border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+            <!-- Ícone espiral customizado ou sparkles -->
+            <svg class="w-10 h-10 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Título e Texto -->
+    <div class="space-y-2">
+        <h3 class="text-2xl font-bold text-transparent bg-clip-text bg-linear-to-r from-amber-200 via-amber-500 to-amber-200 tracking-tight">
+            Sequência Desbloqueada
+        </h3>
+        <p class="text-sm text-text-muted">
+            Você descobriu o segredo da natureza. <br>
+            <span class="font-mono text-amber-500/80 text-xs tracking-widest mt-1 block">1 · 1 · 2 · 3 · 5 · 8 · 13 · 21...</span>
+        </p>
+    </div>
+
+    <!-- O Prêmio: Card do Prompt -->
+    <div class="w-full bg-bg-app/50 border border-amber-500/20 rounded-xl overflow-hidden text-left relative group">
+        <!-- Label "Special Item" -->
+        <div class="absolute top-0 right-0 bg-amber-500/10 text-amber-500 text-[9px] font-bold px-2 py-0.5 rounded-bl-lg border-b border-l border-amber-500/20">
+            SPECIAL ITEM
+        </div>
+
+        <div class="p-4 pt-6">
+            <p class="text-xs text-text-muted mb-2 font-medium">Sua recompensa (Prompt "Golden Ratio"):</p>
+            
+            <!-- Área de Código -->
+            <div class="bg-black/30 rounded-lg p-3 border border-border-subtle font-mono text-xs text-amber-100/90 wrap-break-word leading-relaxed select-all">
+                ${prompt.content.replace(/\n/g, '<br>')}
+            </div>
+            <small class="text-amber-300/80 italic text-[10px] mt-2 block">Prompt adicionado a sua biblioteca.</small>
+        </div>
+
+    <p class="text-[10px] text-text-muted opacity-50 italic">
+        "A matemática é o alfabeto com o qual Deus escreveu o universo." — Galileu
+    </p>
+  </div>
+`;
+
+      toast.show('You found the Fibonacci Easter Egg! 🐇', 'success', 5000);
+      setTimeout(() => {
+        eventBus.emit('prompt:save', {
+          id: null,
+          data: prompt,
+          saveVersion: false,
+        });
+      }, 500);
+      eventBus.emit('modal:open', {
+        title: 'Fibonacci Easter Egg',
+        content: content,
+      });
+    });
+
+    // "GOD" Mode -> Libera log de debug (exemplo)
+    this.shortcuts.registerSequence(
+      ['g', 'o', 'd'],
+      () => {
+        toast.show('👑 God Mode: Console Logging Enabled', 'info');
+        console.log('Current State:', this.repository._getData());
+      },
+      { context: 'no-input', description: 'Ativar God Mode' }
+    );
+
+    this.shortcuts.registerSequence(
+      ['1', '2', '3', '4', '5', '6', '7', '8', '9', '1', '0'],
+      (event, info) => {
+      console.log('info :', info);
+      console.log('event :', event);
+
+        toast.show('Parabéns voce sabe contar!', 'info', 5000);
+      },
+      { context: 'no-input', description: 'Sabe contar' }
+    );
+
+    this.shortcuts.registerLongPress(
+      'm',
+      () => {
+        toast.show('EU JA SOU MUDO!!!', 'error', 5000);
+      },
+      { context: 'no-input', description: 'Easter Egg: Long Press Mudo' }
+    );
+
+    this.shortcuts.registerSequence(
+      ['m','e','m','e'],
+      () => {
+        this.togglememeTheme();
+      },
+      { context: 'no-input', description: 'Easter Egg: Tema Meme' }
+    );
+
+    this.shortcuts.registerSequence(
+      ['c','o','d','e','p','r','o'],
+      () => {
+        this.togglCodeProMode();
+      },
+      { context: 'no-input', description: 'Easter Egg: CodePro Mode' }
+    );
+  }
+
+  /**
+   * Easter Egg: The Matrix / Terminal Mode
+   * "Wake up, Neo..."
+   */
+  toggleMatrixMode() {
+    const ID = 'matrix-theme-style';
+    const existing = document.getElementById(ID);
+
+    // Desativar
+    if (existing) {
+      existing.remove();
+      document.body.classList.remove('matrix-active');
+      toast.show('Back to reality.', 'info');
+      return;
+    }
+
+    // Ativar
+    toast.show('🐇 Follow the white rabbit...', 'success', 5000);
+    document.body.classList.add('matrix-active');
+
+    const style = document.createElement('style');
+    style.id = ID;
+    style.innerHTML = `
+        /* === 1. Sobrescrita Radical de Variáveis (Deep Nebula -> Matrix) === */
+        :root {
+            --matrix-primary: #00ff41;
+            --matrix-dark: #008f11;
+            --matrix-bg: #0d0208;
+            
+            /* Mapeando para o sistema existente */
+            --bg-app: var(--matrix-bg) !important;
+            --bg-surface: #000000 !important;
+            --bg-surface-hover: #001a00 !important;
+            
+            --text-main: var(--matrix-primary) !important;
+            --text-muted: var(--matrix-dark) !important;
+            
+            --border-subtle: var(--matrix-dark) !important;
+            
+            --accent: var(--matrix-primary) !important;
+            --accent-hover: #fff !important;
+            --accent-text: #000 !important;
+        }
+
+        /* === 2. Tipografia e Glow (Efeito Fósforo) === */
+        * {
+            /* VT323 é a fonte pixelada perfeita para esse efeito */
+            font-family: 'VT323', monospace !important;
+            
+            text-shadow: 0 0 2px var(--matrix-dark), 0 0 5px var(--matrix-primary) !important;
+            border-radius: 0 !important;
+        }
+
+        /* === 3. Componentes Específicos === */
+        /* Inputs parecendo terminais */
+        input, textarea, .input-surface {
+            background-color: #000 !important;
+            border: 1px solid var(--matrix-dark) !important;
+            color: var(--matrix-primary) !important;
+            box-shadow: inset 0 0 10px rgba(0, 255, 65, 0.1) !important;
+        }
+        
+        /* Ajuste fino para inputs não ficarem gigantes */
+        input, textarea, button {
+            font-size: 1.2em !important; 
+            letter-spacing: 1px;
+        }
+        
+        /* Botões Invertidos no Hover */
+        button:hover, .btn:hover {
+            background-color: var(--matrix-primary) !important;
+            color: #000 !important;
+            text-shadow: none !important;
+            box-shadow: 0 0 15px var(--matrix-primary) !important;
+        }
+
+        /* Scrollbar Hack */
+        ::-webkit-scrollbar-thumb {
+            background: var(--matrix-dark) !important;
+            border: 1px solid var(--matrix-primary) !important;
+        }
+
+        /* === 4. FX: CRT Scanline & Flicker (A Mágica) === */
+        body::before {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            z-index: 99998;
+            background-size: 100% 2px, 3px 100%;
+            pointer-events: none;
+        }
+
+        body::after {
+            content: " ";
+            display: block;
+            position: fixed;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: rgba(18, 16, 16, 0.1);
+            opacity: 0;
+            z-index: 99999;
+            pointer-events: none;
+            animation: flicker 0.15s infinite, scanline 6s linear infinite;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.02; }
+            50% { opacity: 0.05; }
+            100% { opacity: 0.02; }
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100vh); background: rgba(0, 255, 65, 0.1); }
+            50% { background: rgba(0, 255, 65, 0.05); }
+            100% { transform: translateY(100vh); background: rgba(0, 255, 65, 0.1); }
+        }
+
+        /* === 5. Seleção de Texto === */
+        ::selection {
+            background: var(--matrix-primary) !important;
+            color: #000 !important;
+            text-shadow: none !important;
+        }
+    `;
+    document.head.appendChild(style);
+  }
+
+  togglememeTheme(){
+    const ID = 'meme-theme-style';
+    const existing = document.getElementById(ID);
+
+    // Desativar
+    if (existing) {
+      existing.remove();
+      document.body.classList.remove('meme-active');
+      toast.show('Acabou a diversão.', 'info');
+      return;
+    }
+
+    // Ativar
+    toast.show('Divirta-se quem puder!', 'success', 5000);
+    document.body.classList.add('meme-active');
+    const style = document.createElement('style');
+    style.id = ID ;
+    style.innerHTML = `
+      body { /* Aplica a fonte aleatória */
+        font-family: ${['"Comic Sans MS"', '"Chalkboard"', '"Brush Script MT"', 'cursive', 'sans-serif'].sort(() => 0.5 - Math.random()).join(', ') } !important;
+      }
+
+      /* Sobrescreve o tema Deep Nebula */
+      :root {
+          --meme-bg: ${['#f0f8ff', '#ffffe0', '#f0fff0', '#fff0f5', '#ffe4e1', '#fffafa'][Math.floor(Math.random() * 6)]}; /* Cores pastéis aleatórias */
+          --meme-bg-surface: ${['#f8f8ff', '#fffff0', '#f5fffa', '#fff0f5', '#fffafa', '#fffff0'][Math.floor(Math.random() * 6)]};
+          --meme-text-main: ${['#00008b', '#8b0000', '#006400', '#800080', '#4b0082'][Math.floor(Math.random() * 5)]}; /* Cores de texto berrantes */
+          --meme-text-muted: ${['#556b2f', '#a0522d', '#8b4513', '#6a5acd'][Math.floor(Math.random() * 4)]};
+          --meme-accent: ${['#FF1493', '#FFD700', '#00CED1', '#DA70D6', '#32CD32'][Math.floor(Math.random() * 5)]}; /* Cores de destaque mal combinadas */
+          --meme-border-subtle: var(--meme-accent);
+          --meme-input-bg: #fff; /* Inputs brancos para contrate berrante */
+      }
+
+      /* Aplica em todo o sistema */
+      .md-container,
+      body, #sidebar, #viewer, #editor-overlay, #modal-container, #custom-confirm-modal, #toast-container, #sidebar-footer,
+      .app-navbar, .input-surface, .btn, .btn-primary, .btn-secondary, .btn-icon,
+      .prompt-content, .md-container pre {
+          background-color: var(--meme-bg); /* Fundo principal */
+      }
+      
+      /* Container do Modal */
+      #custom-confirm-modal .bg-bg-surface, 
+      #custom-confirm-modal .bg-bg-app\/50,
+      #custom-confirm-modal #confirm-panel,
+      #custom-confirm-modal .bg-bg-surface\/95,
+      #custom-confirm-modal .bg-bg-app\/50,
+      #custom-confirm-modal #confirm-backdrop {
+          background-color: var(--meme-bg-surface) !important;
+      }
+      
+      /* Texto Principal */
+      h1, h2, h3, h4, h5, h6, p, span, div, a, button, input, textarea, label, li, body, 
+      .text-text-main, .app-logo, .text-text-muted, .prompt-content, .md-container p, .md-container code, .md-container blockquote, .md-container li::marker {
+          color: var(--meme-text-main) !important;
+      }
+      
+      /* Texto Muted */
+      .text-text-muted, .md-container .md-blockquote {
+          color: var(--meme-text-muted) !important;
+      }
+      
+      /* Bordas */
+      .border, #sidebar, main, .app-navbar, .input-surface, .btn, .btn-primary, .btn-secondary, .btn-icon, .md-container, .md-container pre, .md-container blockquote, .md-container img, .md-container hr {
+          border-color: var(--meme-border-subtle) !important;
+      }
+      
+      /* Botão Primário / Accent */
+      .btn-primary, .btn-primary:hover, .btn-primary:active, #btn-save, #btn-new-prompt {
+          background-color: var(--meme-accent) !important;
+          color: #000 !important; /* Texto preto em cima do accent berrante */
+          text-shadow: none !important;
+      }
+      
+      /* Links */
+      .md-container a {
+          color: var(--meme-accent) !important;
+          border-bottom-color: var(--meme-accent) !important;
+      }
+
+      /* Cursor e Scrollbar */
+      * {
+          cursor: crosshair !important; /* Cursor aleatório */
+          cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-6 h-6 text-[\${var(--meme-accent)}]"><path d="M21 13V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h11"></path><path d="M9 13h6m-6 0l-3 3m3-3 3 3"></path></svg>') 12 12, auto; /* Cursor customizado */
+      }
+      ::-webkit-scrollbar-thumb {
+          background: var(--meme-accent) !important;
+          border: 1px solid var(--meme-border-subtle) !important;
+      }
+
+      /* Efeito Scanline e Flicker */
+      body::before, body::after {
+          content: "";
+          position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+          pointer-events: none; z-index: 99999;
+      }
+      body::before { /* Scanlines */
+          background: linear-gradient(rgba(255,255,255,0) 50%, rgba(0,0,0,0.3) 50%), linear-gradient(90deg, rgba(255,255,0,0.1), rgba(255,0,255,0.1), rgba(0,255,255,0.1));
+          background-size: 100% 2px, 3px 100%;
+          animation: scanline-meme 7s linear infinite;
+      }
+      body::after { /* Flicker */
+          background: rgba(255,255,255, 0.03);
+          animation: flicker-meme 0.1s infinite alternate;
+      }
+
+      @keyframes scanline-meme {
+          0% { transform: translateY(-100vh); }
+          100% { transform: translateY(100vh); }
+      }
+      @keyframes flicker-meme {
+          0% { opacity: 0.02; }
+          50% { opacity: 0.08; }
+          100% { opacity: 0.02; }
+      }
+      
+      /* Anula o blur dos modais, pois no caos tudo se mistura */
+      .backdrop-blur-sm { backdrop-filter: none !important; }
+    `;
+    document.head.appendChild(style);
+  }
+
+  togglCodeProMode() {
+    const ID = 'codepro-theme-style';
+    const existing = document.getElementById(ID);
+
+    // Desativar
+    if (existing) {
+      existing.remove();
+      document.body.classList.remove('codepro-active');
+      toast.show('CodePro Mode desativado.', 'info');
+      return;
+    }
+
+    // Ativar
+    toast.show('CodePro Mode ativado!', 'success', 5000);
+    document.body.classList.add('codepro-active');
+    const style = document.createElement('style');
+    style.id = ID ;
+    style.innerHTML = `
+      /* Sobrescrive o tema Deep Nebula */
+      :root {
+          /* Cores baseadas no tema "Dark+ (default dark)" do VS Code */
+          --vscode-bg-app: #1e1e1e;         /* Fundo Geral */
+          --vscode-bg-surface: #252526;     /* Superficies (Sidebar, Header) */
+          --vscode-bg-surface-hover: #2a2a2c; /* Hover de superficies */
+          --vscode-border-subtle: #333333;  /* Bordas finas */
+          
+          --vscode-text-main: #d4d4d4;      /* Texto principal */
+          --vscode-text-muted: #8a8a8a;     /* Texto secundário */
+          
+          /* Accent: Usaremos o nosso Violeta, mas mais apagado */
+          --vscode-accent: #c586c0;         /* Violeta do VS Code */
+          --vscode-accent-hover: #d480d4;
+          --vscode-accent-text: #fff;
+          
+          /* Cores para Inputs/Botões */
+          --vscode-input-bg: #2d2d2d;
+          --vscode-button-bg: #37373d;
+          --vscode-button-hover-bg: #3f3f41;
+          --vscode-button-primary-bg: var(--vscode-accent);
+          
+          /* Fontes */
+          --font-sans: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; /* Sans-serif comum e legível */
+          --font-mono: 'Consolas', 'Monaco', 'Courier New', monospace;   /* Fonte mono clássica */
+      }
+
+      /* Aplica em componentes chave */
+      body, .md-container, #sidebar, main, .app-navbar, #custom-confirm-modal #confirm-panel, #custom-confirm-modal .bg-bg-surface\/95, .btn-primary, #btn-save {
+          background-color: var(--vscode-bg-app) !important;
+      }
+      
+      /* Aplica em elementos da sidebar e header */
+      #sidebar, .app-navbar, .btn-secondary, #custom-confirm-modal .bg-bg-surface, #custom-confirm-modal .bg-bg-app\/50 {
+          background-color: var(--vscode-bg-surface) !important;
+      }
+      
+      /* Bordas */
+      .border, .input-surface, .btn, .btn-secondary, #sidebar, main, .app-navbar, #custom-confirm-modal, #custom-confirm-modal .border-border-subtle, #custom-confirm-modal .bg-bg-app\/50 {
+          border-color: var(--vscode-border-subtle) !important;
+      }
+      
+      /* Texts */
+      h1, h2, h3, h4, p, span, button, input, textarea, label, li, 
+      .text-text-main, .text-text-muted, .app-logo, .prompt-content, .md-container p, .md-container code, .md-container blockquote,
+      .btn-primary, #btn-save, .btn-icon {
+          color: var(--vscode-text-main) !important;
+      }
+      .text-text-muted, .md-container .md-blockquote {
+          color: var(--vscode-text-muted) !important;
+      }
+
+      /* Botões e Inputs */
+      .input-surface, input, textarea, button, .btn, .btn-secondary {
+          background-color: var(--vscode-input-bg) !important;
+          border-color: var(--vscode-border-subtle) !important;
+          color: var(--vscode-text-main) !important;
+      }
+      
+      .btn-primary, #btn-save, #btn-new-prompt {
+          background-color: var(--vscode-button-primary-bg) !important;
+          color: var(--vscode-accent-text) !important;
+          border: none !important; /* Botão primário do VSCode não tem borda */
+      }
+      .btn-primary:hover {
+          background-color: var(--vscode-accent-hover) !important;
+      }
+
+      /* Links */
+      .md-container a {
+          color: var(--vscode-accent) !important;
+      }
+      .md-container a:hover {
+          color: var(--vscode-accent-hover) !important;
+          border-bottom-color: var(--vscode-accent-hover) !important;
+      }
+      
+      /* Hover de botões em geral */
+      button:hover, .btn:hover, .btn-secondary:hover, .btn-icon:hover {
+          background-color: var(--vscode-button-hover-bg) !important;
+      }
+
+      /* Scrollbar */
+      ::-webkit-scrollbar-thumb {
+          background: var(--vscode-border-subtle) !important;
+      }
+      
+      /* Remover animações de foco do Deep Nebula para ter a aparência nativa do VS Code */
+      .input-surface:focus, .input-surface:focus-within {
+          border-color: var(--vscode-border-subtle) !important;
+          ring: none !important;
+          box-shadow: none !important;
+      }
+      
+      /* Para o Editor: Mudar fundo e fonte explicitamente */
+      #edit-content, #preview-area {
+          background-color: var(--vscode-bg-app) !important;
+          font-family: var(--font-mono) !important;
+          color: var(--vscode-text-main) !important;
+          font-size: 15px; /* Tamanho padrão do editor */
+      }
+      #preview-area {
+          padding: 1rem; /* Padding para o preview */
+      }
+      .prompt-content {
+          max-width: 100% !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          line-height: 1.7;
+      }
+      
+      /* Remover glows e animações que não combinam */
+      .shadow-lg, .shadow-md, .group-hover\:shadow-md, .shadow-accent\/20, .animate-fade-in, .animate-scale-in, .animate-pulse, .group-hover\:rotate-90, .group-hover\:opacity-100, .group-hover\:border-accent\/50, .group-hover\:bg-accent\/10, .group-hover\:text-accent, .group-hover\:text-red-500, .group-hover\:bg-red-500\/10, .group-hover\:scale-110, .group-hover\:border-accent\/30, .group-hover\:bg-bg-app\/50, .group-hover\:border-gray-600, .animate-fade-in-up, .group-hover\:text-white, .group-hover\:bg-gray-700, .group-hover\:bg-yellow-600, .group-hover\:text-red-200, .group-hover\:text-white, .group-hover\:text-emerald-500, .group-hover\:bg-emerald-500\/10, .group-hover\:text-amber-400, .group-hover\:underline, .group-hover\:text-text-main, .group-hover\:border-accent\/30, .group-hover\:shadow-sm, .group-hover\:opacity-60, .group-hover\:bg-bg-app\/50, .group-hover\:border-accent\/30, .group-hover\:transition-colors, .animate-ping {
+          box-shadow: none !important;
+          animation: none !important;
+          filter: none !important;
+          opacity: inherit !important; /* Reseta opacidade */
+      }
+      
+      /* Remove o blur dos modais */
+      .backdrop-blur-sm { backdrop-filter: none !important; }
+    `;
+    document.head.appendChild(style);
   }
 
   setupEventOrchestration() {
@@ -347,6 +965,22 @@ class App {
       await this.updateStatusBar();
     });
 
+    eventBus.on('prompt:duplicate', async ({ id }) => {
+      try {
+        await this.repository.duplicatePrompt(id);
+        toast.show('Prompt duplicado com sucesso', 'success');
+        // O evento prompt:created já cuida de atualizar a lista
+      } catch (err) {
+        toast.show('Erro ao duplicar: ' + err.message, 'error');
+      }
+    });
+
+    eventBus.on('ui:request-shortcuts', (callback) => {
+      // O método listShortcuts já retorna o formato correto
+      const list = this.shortcuts.listShortcuts();
+      callback(list);
+    });
+
     const btnHelp = document.getElementById('btn-help');
     if (btnHelp) {
       btnHelp.onclick = () => eventBus.emit('help:open');
@@ -519,12 +1153,8 @@ class App {
   }
 }
 
-export let metaKey = 'Ctrl'; // Padrão, será ajustado no load
-
 // Inicialização
 const app = new App();
 window.addEventListener('DOMContentLoaded', () => {
-  metaKey = navigator.platform.startsWith('Mac') ? '⌘' : 'Ctrl';
-
   app.init();
 });

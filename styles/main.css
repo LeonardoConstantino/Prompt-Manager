@@ -16,9 +16,27 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-text: var(--accent-text);
+
+    /* Substitui a sans default pelo Plus Jakarta Sans */
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  
+  /* Substitui a mono default pelo JetBrains Mono */
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   
   --animate-scale-in: scale-in 0.2s ease-out forwards;
   --animate-fade-in: fade-in 0.2s ease-out forwards;
+  --animate-fade-in-up: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  
+  @keyframes fade-in-up {
+    0% {
+      opacity: 0;
+      transform: translateY(15px); /* Começa 15px abaixo */
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 
   @keyframes scale-in {
     0% { transform: scale(0.95); opacity: 0; }

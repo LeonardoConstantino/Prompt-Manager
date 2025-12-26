@@ -322,6 +322,47 @@ class PromptRepository {
   }
 
   /**
+   * Duplica um prompt existente
+   * @param {string} id - ID do prompt a duplicar
+   * @returns {Promise<Prompt>} Novo prompt duplicado
+   */
+  async duplicatePrompt(id) {
+    return this._executeWithLoading(async () => {
+        const currentData = this._getData();
+        const original = currentData.prompts.find(p => p.id === id);
+        
+        if (!original) throw new Error('Prompt não encontrado');
+
+        const now = new Date().toISOString();
+        const newId = generateUUID();
+
+        const newPrompt = {
+            ...original,
+            id: newId,
+            name: `${original.name} (Cópia)`,
+            createdAt: now,
+            updatedAt: now,
+            isFavorite: false // Não copiar status de favorito
+        };
+
+        // Copiar histórico? Geralmente não. Começamos limpo.
+        const firstVersion = {
+            id: generateUUID(),
+            timestamp: now,
+            diff: null,
+            note: `Duplicado de "${original.name}"`
+        };
+
+        currentData.prompts.push(newPrompt);
+        currentData.versions[newId] = [firstVersion];
+
+        await this.storage.setValue(currentData);
+        eventBus.emit('prompt:created', { prompt: newPrompt });
+        return newPrompt;
+    });
+  }
+
+  /**
    * Busca prompts por query e tags
    * @param {string} query - Texto a buscar (nome/descrição)
    * @param {string[]} tags - Tags para filtrar

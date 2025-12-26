@@ -1,5 +1,4 @@
 import eventBus from '../utils/eventBus.js';
-import { toast } from '../utils/Toast.js';
 import { getIcon } from '../utils/Icons.js';
 
 export default class SettingsModal {

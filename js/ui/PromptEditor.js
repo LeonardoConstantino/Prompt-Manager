@@ -1,7 +1,7 @@
 import eventBus from '../utils/eventBus.js';
 import { MarkdownParser } from '../utils/markdown.js';
 import { getIcon } from '../utils/Icons.js';
-import { metaKey } from '../app.js';
+import { metaKey } from '../utils/platform.js';
 import { confirmModal } from './ConfirmModal.js';
 
 export default class PromptEditor {
@@ -10,6 +10,8 @@ export default class PromptEditor {
     this.editMode = false;
     this.currentId = null;
     this.isDirty = false;
+    // Definir limites para alertas visuais (Soft limits)
+    this.tokenWarningLimit = 4096; // Limite comum de contexto
     this.markdown = new MarkdownParser();
 
     // Registra estado global de edição
@@ -46,11 +48,11 @@ export default class PromptEditor {
   // Wrapper para verificar se pode descartar alterações
   async checkDirty(callback) {
     if (this.isDirty && !this.container.classList.contains('hidden')) {
-          const confirmed = await confirmModal.ask(
-              'Descartar alterações?',
-              'Você tem edições não salvas. Se sair agora, o progresso será perdido.',
-              { variant: 'danger', confirmText: 'Descartar' }
-          );
+      const confirmed = await confirmModal.ask(
+        'Descartar alterações?',
+        'Você tem edições não salvas. Se sair agora, o progresso será perdido.',
+        { variant: 'danger', confirmText: 'Descartar' }
+      );
       if (confirmed) {
         this.isDirty = false;
         window.appState.isEditing = false;
@@ -108,7 +110,7 @@ export default class PromptEditor {
         </div>
         
         <!-- CORPO DO EDITOR (Scrollável se a tela for pequena, mas fixo em desktop) -->
-        <div class="flex-1 overflow-hidden flex flex-col p-6 gap-5">
+        <div class="flex-1 overflow-hidden flex flex-col p-6 pb-2 gap-5">
           
           <!-- Metadados: Layout Grid Otimizado -->
           <div class="grid grid-cols-1 md:grid-cols-12 gap-4 shrink-0">
@@ -188,11 +190,40 @@ export default class PromptEditor {
           `
               : ''
           }
+          </div>
+          <!-- Status Bar do Editor -->
+          <div class="flex items-center gap-4 px-3 text-[10px] font-mono text-text-muted border-l border-border-subtle pl-6 mb-2 select-none">
+              
+              <!-- Caracteres -->
+              <div title="Total de caracteres" class="flex items-center gap-1 hover:text-text-main transition-colors cursor-default">
+                  <span id="stat-chars" class="font-bold text-text-main tabular-nums">0</span> 
+                  <span class="opacity-70">chars</span>
+              </div>
+
+              <!-- Palavras -->
+              <div title="Total de palavras" class="flex items-center gap-1 hover:text-text-main transition-colors cursor-default">
+                  <span id="stat-words" class="font-bold text-text-main tabular-nums">0</span> 
+                  <span class="opacity-70">palavras</span>
+              </div>
+
+              <!-- Tokens (Com destaque) -->
+              <div title="Estimativa: 1 token ≈ 4 caracteres" class="group relative cursor-help flex items-center gap-1 transition-colors">
+                  <!-- Ícone sutil de 'chip' -->
+                  ${getIcon(
+                    'chip',
+                    'w-3 h-3 opacity-50 group-hover:text-accent transition-colors'
+                  )}
+                  
+                  <span id="stat-tokens" class="font-bold text-accent transition-all duration-300 tabular-nums">0</span> 
+                  <span class="text-accent/70 group-hover:text-accent transition-colors">tok (est.)</span>
+              </div>
         </div>
       </div>
     `;
 
     this.attachListeners();
+    // Calcula stats iniciais
+    this.updateStats();
   }
 
   attachListeners() {
@@ -206,8 +237,10 @@ export default class PromptEditor {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         preview.innerHTML = this.markdown.parse(text);
+
+        //Atualiza Estatísticas
+        this.updateStats();
       }, 300);
-      // preview.innerHTML = this.markdown.parse(textarea.value);
     });
 
     this.container.querySelector('#btn-cancel').onclick = () => {
@@ -225,7 +258,7 @@ export default class PromptEditor {
       });
     });
 
-    this.container.querySelector('#btn-cancel').onclick = async() => {
+    this.container.querySelector('#btn-cancel').onclick = async () => {
       await this.checkDirty(() => this.close());
     };
 
@@ -267,6 +300,53 @@ export default class PromptEditor {
 
     eventBus.emit('prompt:save', payload);
     this.close();
+  }
+
+  /**
+   * Calcula e atualiza a barra de estatísticas
+   */
+  updateStats() {
+    const text = this.container.querySelector('#edit-content').value || '';
+
+    // 1. Caracteres
+    const chars = text.length;
+
+    // 2. Palavras (Split por whitespace)
+    const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+
+    // 3. Tokens (Estimativa heurística)
+    // OpenAI rule: ~4 chars per token.
+    // Para maior precisão em código/português, podemos ser conservadores e usar 3.5 ou manter 4.
+    const estTokens = Math.ceil(chars / 4);
+
+    // Atualiza DOM
+    const elChars = this.container.querySelector('#stat-chars');
+    const elWords = this.container.querySelector('#stat-words');
+    const elTokens = this.container.querySelector('#stat-tokens');
+
+    elChars.textContent = chars.toLocaleString();
+    elWords.textContent = words.toLocaleString();
+    elTokens.textContent = estTokens.toLocaleString();
+
+    // Feedback Visual de Limite (Warning System)
+    // Reseta classes base para garantir que não acumule
+    elTokens.className = 'font-bold tabular-nums transition-all duration-300';
+
+    if (estTokens > this.tokenWarningLimit) {
+      // CRÍTICO: Vermelho com Glow e Pulso
+      elTokens.classList.add(
+        'text-red-600',
+        'dark:text-red-400',
+        'animate-pulse',
+        'drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]' // Glow effect
+      );
+    } else if (estTokens > this.tokenWarningLimit * 0.8) {
+      // ALERTA: Amber (Melhor que yellow puro em fundo branco)
+      elTokens.classList.add('text-amber-600', 'dark:text-amber-400');
+    } else {
+      // NORMAL: Cor do Accent (Violeta)
+      elTokens.classList.add('text-accent');
+    }
   }
 
   checkChanges() {

@@ -1,12 +1,14 @@
 import eventBus from '../utils/eventBus.js';
+import ContextMenu from './ContextMenu.js';
 import { getIcon } from '../utils/Icons.js';
 import { formatDate, getCategoryColor } from '../utils/helpers.js';
 import { confirmModal } from './ConfirmModal.js';
-import { metaKey } from '../app.js';
-
+import { metaKey } from '../utils/platform.js';
+import { toast } from '../utils/Toast.js';
 export default class PromptList {
   constructor(containerId) {
     this.container = document.getElementById(containerId);
+    this.contextMenu = new ContextMenu();
     this.prompts = [];
     this.allTags = []; // Lista de todas as tags disponíveis
     this.selectedTags = new Set(); // Tags ativas no filtro
@@ -286,6 +288,36 @@ export default class PromptList {
     let debounceTimer;
     inputSearch.addEventListener('input', (e) => {
       this.searchQuery = e.target.value;
+      const val = this.searchQuery.toLowerCase().trim();
+
+      if (val === 'open the pod bay doors') {
+        e.target.value = '';
+
+        toast.show(
+          "I'm sorry, Dave. I'm afraid I can't do that.",
+          'error',
+          5000
+        );
+
+        document.documentElement.style.setProperty('--accent', '#ef4444'); // Red-500
+        document.documentElement.style.setProperty('--accent-hover', '#dc2626');
+
+        setTimeout(()=>{
+          confirmModal
+          .ask(
+            'HAL 9000',
+            'This mission is too important for me to allow you to jeopardize it.',
+            { variant: 'danger', confirmText: 'Deactivate HAL' }
+          )
+          .then(() => {
+            // Restaura o tema ao confirmar
+            document.documentElement.style.removeProperty('--accent');
+            document.documentElement.style.removeProperty('--accent-hover');
+            toast.show('Daisy, Daisy, give me your answer do...', 'info');
+          });
+        }, 3000);
+      }
+
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(this.handleSearch, 300);
       // this.handleSearch();
@@ -364,7 +396,17 @@ export default class PromptList {
     });
 
     if (filtered.length === 0) {
-      listContainer.innerHTML = `<div class="text-center text-gray-500 mt-10 text-sm italic">Nenhum prompt encontrado</div>`;
+      listContainer.innerHTML = `
+  <div class="flex flex-col items-center justify-center h-48 text-center animate-fade-in px-4">
+      <div class="w-12 h-12 mb-3 rounded-full bg-bg-surface border border-border-subtle flex items-center justify-center">
+          ${getIcon('search', 'w-5 h-5 text-text-muted opacity-50')}
+      </div>
+      <p class="text-xs text-text-muted">
+         Nenhum prompt encontrado para <br>
+         <span class="text-text-main font-medium">"${this.searchQuery}"</span>
+      </p>
+  </div>
+`;
       return;
     }
 
@@ -379,7 +421,7 @@ export default class PromptList {
       // 1. Definição de Estilos Dinâmicos (Semânticos)
       // Selecionado: Fundo com tintura do acento, borda sólida e brilho
       const selectedClass =
-        'bg-accent/10 border-accent shadow-[0_0_15px_-5px_var(--accent)] z-10';
+        'bg-accent/10 border-accent shadow-[0_0_15px_-5px_var(--accent)] active:scale-[0.98] z-10';
 
       // Padrão: Fundo "recuado" (app bg), borda sutil. Hover traz brilho na borda.
       const defaultClass =
@@ -417,7 +459,7 @@ export default class PromptList {
         </div>
 
         <!-- Descrição: text-text-muted -->
-        <p class="text-xs text-text-muted truncate mb-3 min-h-[1rem] leading-relaxed opacity-90">${
+        <p class="text-xs text-text-muted truncate mb-3 min-h-4 leading-relaxed opacity-90">${
           prompt.description ||
           '<span class="italic opacity-50">Sem descrição</span>'
         }</p>
@@ -490,6 +532,49 @@ export default class PromptList {
         e.stopPropagation(); // Impede seleção do card
         eventBus.emit('prompt:toggle-fav', { id: prompt.id });
       };
+
+      el.addEventListener('contextmenu', (e) => {
+        e.preventDefault(); // Bloqueia menu nativo
+
+        // Seleciona o item visualmente (opcional, mas boa UX)
+        this.selectedId = prompt.id;
+        this.renderList();
+        eventBus.emit('prompt:selected', { id: prompt.id });
+
+        // Abre Menu Customizado
+        this.contextMenu.show(e.clientX, e.clientY, [
+          {
+            label: 'Abrir / Editar',
+            icon: 'edit', // ou 'settings' se não tiver edit
+            onClick: () => eventBus.emit('ui:trigger-edit'), // Usa o atalho existente
+          },
+          {
+            label: prompt.isFavorite ? 'Remover Favorito' : 'Favoritar',
+            icon: prompt.isFavorite ? 'star-solid' : 'star-outline',
+            onClick: () =>
+              eventBus.emit('prompt:toggle-fav', { id: prompt.id }),
+          },
+          {
+            label: 'Duplicar',
+            icon: 'copy',
+            onClick: () => eventBus.emit('prompt:duplicate', { id: prompt.id }),
+          },
+          { type: 'separator' },
+          {
+            label: 'Deletar',
+            icon: 'close', // ou 'trash'
+            danger: true,
+            onClick: async () => {
+              const confirmed = await confirmModal.ask(
+                'Excluir Prompt?',
+                'Esta ação é irreversível.',
+                { variant: 'danger', confirmText: 'Excluir' }
+              );
+              if (confirmed) eventBus.emit('prompt:delete', { id: prompt.id });
+            },
+          },
+        ]);
+      });
 
       listContainer.appendChild(el);
     });

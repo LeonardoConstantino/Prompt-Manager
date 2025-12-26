@@ -539,7 +539,7 @@ _Sim, há alguns escondidos na aplicação. Boa sorte encontrando todos! 🕵️
 
 1. **Konami Code** - Tente usar o clássico ↑ ↑ ↓ ↓ ← → ← → B A
 2. **Sequência de Fibonacci** - Digite nos primeiros 5 prompts criados
-3. **The Matrix** - Mantenha pressionado `Alt + M` por 3 segundos
+3. **HAL 9000** - open the pod bay doors
 
 ---
 

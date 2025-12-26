@@ -313,3 +313,4 @@ export const getCategoryColor = (category) => {
   }
   return colors[Math.abs(hash) % colors.length];
 };
+

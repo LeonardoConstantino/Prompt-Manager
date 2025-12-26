@@ -10,6 +10,7 @@ import {
   formatDate,
   getCategoryColor,
 } from '../utils/helpers.js';
+import { animateButtonFeedback } from '../utils/uiHelpers.js';
 
 export default class PromptViewer {
   constructor(containerId) {
@@ -109,7 +110,8 @@ export default class PromptViewer {
       .map(
         (link) => `
         <button 
-            class="btn btn-secondary py-1.5 px-3 text-xs gap-2 group shadow-sm" 
+            class="btn btn-secondary py-1.5 px-3 text-xs gap-2 group shadow-sm"
+            id="btn-run" 
             data-url="${link.url}" 
             title="Copiar e abrir ${link.name}"
         >
@@ -131,7 +133,8 @@ export default class PromptViewer {
       <div class="flex flex-col h-full bg-bg-app transition-colors duration-300">
         
         <!-- HEADER: Painel de Controle (Surface) -->
-        <div class="px-8 py-6 border-b border-border-subtle bg-bg-surface shadow-sm z-10">
+        <div class="px-8 py-6 border-b border-border-subtle bg-bg-surface shadow-sm z-10 animate-fade-in-up opacity-0" 
+             style="animation-delay: 0ms;">
           <div class="flex justify-between items-start mb-5 gap-4">
             <!-- Título com tracking ajustado para modernidade -->
             <h1 class="text-3xl font-bold text-text-main tracking-tight leading-tight">${name}</h1>
@@ -182,7 +185,8 @@ export default class PromptViewer {
 
         <!-- TOOLBAR: Barra de Ferramentas Técnica -->
         <!-- Sticky top para ficar visível ao rolar o conteúdo longo -->
-        <div class="px-8 py-2 bg-bg-app/95 backdrop-blur border-b border-border-subtle flex flex-wrap gap-4 justify-between items-center sticky top-0 z-20">
+        <div class="px-8 py-2 bg-bg-app/95 backdrop-blur border-b border-border-subtle flex flex-wrap gap-4 justify-between items-center sticky top-0 z-20 animate-fade-in-up opacity-0" 
+             style="animation-delay: 100ms; animation-fill-mode: forwards;">
           <div class="flex items-center gap-3">
              ${
                runButtonsHtml.length > 0
@@ -207,7 +211,8 @@ export default class PromptViewer {
 
         <!-- CONTENT: Área de Leitura -->
         <!-- Adicionei max-w-4xl e mx-auto para evitar linhas de texto muito longas que cansam a leitura -->
-        <div class="flex-1 overflow-y-auto p-8 md:px-12 bg-bg-app w-full scroll-smooth">
+        <div class="flex-1 overflow-y-auto p-8 md:px-12 bg-bg-app w-full scroll-smooth animate-fade-in-up opacity-0" 
+             style="animation-delay: 200ms; animation-fill-mode: forwards;">
           <article class="prompt-content max-w-5xl mx-auto text-text-main leading-7">
              ${htmlContent}
           </article>
@@ -228,9 +233,9 @@ export default class PromptViewer {
 
     this.container.querySelector('#btn-delete').onclick = async () => {
       const confirmed = await confirmModal.ask(
-          'Excluir Prompt?',
-          'Esta ação é irreversível. O prompt e todo o histórico de versões serão apagados permanentemente.',
-          { variant: 'danger', confirmText: 'Sim, excluir' }
+        'Excluir Prompt?',
+        'Esta ação é irreversível. O prompt e todo o histórico de versões serão apagados permanentemente.',
+        { variant: 'danger', confirmText: 'Sim, excluir' }
       );
 
       if (confirmed) {
@@ -260,13 +265,39 @@ export default class PromptViewer {
       );
     };
 
-    this.container.querySelector('#btn-copy').onclick = async () => {
-      await handleCopy();
+    this.container.querySelector('#btn-copy').onclick = async (e) => {
+      try {
+        await handleCopy();
+
+        // Animação de feedback no botão
+        animateButtonFeedback(e.target, {
+          text: 'Copiado!',
+          icon: 'check-circle',
+          type: 'success',
+          duration: 2000,
+        });
+      } catch (error) {
+        console.log('error :', error);
+        animateButtonFeedback(e.target, {
+          text: 'Erro!',
+          icon: 'close',
+          type: 'error',
+          duration: 2000,
+        });
+      }
     };
 
     // Botões Click-to-Run
-    this.container.querySelectorAll('.btn-run').forEach((btn) => {
-      btn.onclick = () => handleCopy(btn.dataset.url);
+    this.container.querySelectorAll('#btn-run').forEach((btn) => {
+      btn.onclick = async () => {
+        const url = btn.dataset.url;
+        try {
+          await handleCopy(url);
+        } catch (error) {
+          console.log('error :', error);
+          toast.show('Erro ao copiar o prompt.', 'error');
+        }
+      };
     });
 
     this.container.querySelector('#btn-download').onclick = () => {
