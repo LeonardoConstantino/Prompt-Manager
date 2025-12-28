@@ -128,34 +128,59 @@ Build:
 
 ```
 prompt-manager/
-│
-├── index.html                 # Entry point
-│
-├── styles/
-│   └── main.css              # Customizações mínimas
-│
-└── js/
-    ├── lib/                  # Bibliotecas core
-    │   ├── IndexedDBStorage.js
-    │   └── TextDiff.js
-    │
-    ├── core/                 # Lógica de negócio
-    │   ├── PromptRepository.js
-    │   └── BackupManager.js
-    │
-    ├── ui/                   # Componentes de interface
-    │   ├── PromptList.js
-    │   ├── PromptViewer.js
-    │   ├── PromptEditor.js
-    │   ├── VersionHistory.js
-    │   └── Modal.js
-    │
-    ├── utils/                # Utilitários
-    │   ├── eventBus.js
-    │   ├── markdown.js
-    │   └── helpers.js
-    │
-    └── app.js                # Orquestrador principal
+├── docs
+│   └── images
+│       ├── backup.gif
+│       ├── banner.png
+│       ├── create-prompt.gif
+│       ├── dark-mode.png
+│       ├── editor-view.png
+│       ├── edit-version.gif
+│       ├── history.gif
+│       ├── main-interface.png
+│       ├── search.gif
+│       └── version-history.png
+├── favicon.ico
+├── index.html
+├── js
+│   ├── app.js
+│   ├── core
+│   │   ├── BackupManager.js
+│   │   └── PromptRepository.js
+│   ├── data
+│   │   └── TutorialContent.js
+│   ├── lib
+│   │   ├── IndexedDBStorage.js
+│   │   ├── KeyboardShortcutManager.js
+│   │   └── TextDiff.js
+│   ├── ui
+│   │   ├── ConfirmModal.js
+│   │   ├── ContextMenu.js
+│   │   ├── GlobalLoader.js
+│   │   ├── HelpModal.js
+│   │   ├── Modal.js
+│   │   ├── PromptEditor.js
+│   │   ├── PromptList.js
+│   │   ├── PromptViewer.js
+│   │   ├── SettingsModal.js
+│   │   ├── VariableFiller.js
+│   │   └── VersionHistory.js
+│   └── utils
+│       ├── eventBus.js
+│       ├── helpers.js
+│       ├── Icons.js
+│       ├── markdown.js
+│       ├── platform.js
+│       ├── Toast.js
+│       └── uiHelpers.js
+├── planejamento.md
+├── README.md
+└── styles
+    ├── main.css
+    ├── markdown.css
+    └── output.css
+
+10 directories, 42 files
 ```
 
 ### Padrões Arquiteturais

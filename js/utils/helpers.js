@@ -64,85 +64,64 @@ export function downloadFile(content, filename, type = 'text/plain') {
 }
 
 /**
- * Formata data ISO para formato legível usando API Intl
- * @param {string} isoString - Data em formato ISO
- * @param {boolean} includeTime - Incluir horário (padrão: false)
- * @param {boolean} isRelative - Retornar tempo relativo (padrão: false)
- * @param {string} locale - Código de localidade (padrão: 'pt-BR')
- * @returns {string} Data formatada
+ * @typedef {Object} FormatDateOptions
+ * @property {boolean} [includeTime=false] - Adiciona HH:mm ao formato absoluto
+ * @property {boolean} [isRelative=false] - Retorna "há 2 dias" ao invés de "28/12/2025"
+ * @property {string} [locale='pt-BR'] - Código BCP 47 (ex: 'en-US', 'es-ES')
  */
-export function formatDate(isoString, includeTime = false, isRelative = false, locale = 'pt-BR') {
-  // Validação de entrada
-  if (!isoString) {
-    throw new Error('isoString é obrigatório');
-  }
-
-  const date = new Date(isoString);
-
-  // Validação de data válida
-  if (isNaN(date.getTime())) {
-    throw new Error('Data inválida');
-  }
-
-  // Modo relativo: retorna tempo relativo à data atual
-  if (isRelative) {
-    return formatRelativeTime(date, locale);
-  }
-
-  // Modo absoluto: formata data usando Intl.DateTimeFormat
-  const options = {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  };
-
-  // Adiciona horário se solicitado
-  if (includeTime) {
-    options.hour = '2-digit';
-    options.minute = '2-digit';
-    options.hour12 = false; // Formato 24h
-  }
-
-  const formatter = new Intl.DateTimeFormat(locale, options);
-  return formatter.format(date);
-}
 
 /**
- * Formata tempo relativo usando Intl.RelativeTimeFormat
- * @param {Date} date - Data a ser formatada
- * @param {string} locale - Código de localidade
- * @returns {string} Tempo relativo formatado
+ * Formata data ISO para formato legível ou relativo
+ * @param {string} isoString - Data ISO 8601
+ * @param {Partial<FormatDateOptions>} [options={}] - Configurações de formatação
+ * @returns {string} Data formatada (ex: "28/12/2025", "28/12/2025, 14:30", "há 3 horas")
+ * @throws {Error} Se isoString ausente ou inválida
+ *
+ * @example
+ * formatDate('2025-12-28T10:00:00Z') // "28/12/2025"
+ * formatDate('2025-12-28T10:00:00Z', { includeTime: true }) // "28/12/2025, 10:00"
+ * formatDate('2025-12-27T10:00:00Z', { isRelative: true }) // "ontem"
  */
-function formatRelativeTime(date, locale = 'pt-BR') {
-  const now = new Date();
-  const diffInMs = date.getTime() - now.getTime();
-  const diffInSeconds = Math.round(diffInMs / 1000);
-  const diffInMinutes = Math.round(diffInSeconds / 60);
-  const diffInHours = Math.round(diffInMinutes / 60);
-  const diffInDays = Math.round(diffInHours / 24);
-  const diffInMonths = Math.round(diffInDays / 30);
-  const diffInYears = Math.round(diffInDays / 365);
+export function formatDate(
+  isoString,
+  { includeTime = false, isRelative = false, locale = 'pt-BR' } = {}
+) {
+  if (!isoString) throw new Error('isoString é obrigatório');
 
-  const rtf = new Intl.RelativeTimeFormat(locale, {
-  localeMatcher: "best fit", // outros valores: "lookup"
-  numeric: "always", // outros valores: "auto"
-  style: "long", // outros valores: "short" ou "narrow"
-});
+  const date = new Date(isoString);
+  if (isNaN(date.getTime())) throw new Error('Data inválida');
 
-  // Determina a unidade mais apropriada baseada na diferença
-  if (Math.abs(diffInYears) >= 1) {
-    return rtf.format(diffInYears, 'year');
-  } else if (Math.abs(diffInMonths) >= 1) {
-    return rtf.format(diffInMonths, 'month');
-  } else if (Math.abs(diffInDays) >= 1) {
-    return rtf.format(diffInDays, 'day');
-  } else if (Math.abs(diffInHours) >= 1) {
-    return rtf.format(diffInHours, 'hour');
-  } else if (Math.abs(diffInMinutes) >= 1) {
-    return rtf.format(diffInMinutes, 'minute');
-  } else {
-    return rtf.format(diffInSeconds, 'second');
+  if (isRelative) {
+    const diffInSeconds = Math.floor((date - Date.now()) / 1000);
+    const rtf = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' });
+
+    // Ordem decrescente para priorizar unidades maiores
+    const units = [
+      [31536000, 'year'], // 365 * 24 * 60 * 60
+      [2592000, 'month'], // 30 * 24 * 60 * 60
+      [86400, 'day'], // 24 * 60 * 60
+      [3600, 'hour'], // 60 * 60
+      [60, 'minute'],
+      [1, 'second'],
+    ];
+
+    for (const [seconds, unit] of units) {
+      const value = Math.trunc(diffInSeconds / seconds);
+      if (Math.abs(value) >= 1) return rtf.format(value, unit);
+    }
+
+    return rtf.format(0, 'second'); // "agora" / "now"
   }
+
+  const options = { day: '2-digit', month: '2-digit', year: 'numeric' };
+  if (includeTime)
+    Object.assign(options, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+
+  return new Intl.DateTimeFormat(locale, options).format(date);
 }
 
 /**
@@ -314,3 +293,132 @@ export const getCategoryColor = (category) => {
   return colors[Math.abs(hash) % colors.length];
 };
 
+/**
+ * Extrai estatísticas de um texto
+ * @param {string} text - Texto que sera analisado
+ * @returns {{chars:number, words:number, estTokens:number}} - Um objeto contendo quantidade de caracteres, quantidade de palavras e estimativa de tokes OpenAI rule: ~4 chars per token
+ */
+export const getStatsTextInfo = (text) => {
+  const stats = {
+    chars: 0,
+    words: 0,
+    estTokens: 0,
+  };
+
+  if (text.trim() === '') return stats;
+
+  // 1. Caracteres
+  stats.chars = text.length;
+
+  // 2. Palavras (Split por whitespace)
+  stats.words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+
+  // 3. Tokens (Estimativa heurística)
+  // OpenAI rule: ~4 chars per token.
+  // Para maior precisão em código/português, podemos ser conservadores e usar 3.5 ou manter 4.
+  stats.estTokens = Math.ceil(stats.chars / 4);
+
+  return stats;
+};
+
+/**
+ * Deep Nebula Console Experience
+ * Tema: Violet/Zinc
+ * Trigger: Digitar "god" (God Mode)
+ */
+export function generateWelcome() {
+  // Cores do Tema Deep Nebula (Hardcoded para o Console)
+  const theme = {
+    zinc900: '#18181b',
+    zinc500: '#71717a',
+    zinc200: '#e4e4e7',
+    violet500: '#8b5cf6',
+    violet900: '#4c1d95',
+  };
+
+  const styles = {
+    // Título Principal
+    titulo: `font-family: monospace; font-size: 20px; font-weight: 900; color: ${theme.violet500}; text-shadow: 0 0 15px ${theme.violet900}; line-height: 1.2;`,
+    
+    // Subtítulo
+    subtitulo: `font-family: sans-serif; font-size: 14px; color: ${theme.zinc500}; margin-bottom: 10px;`,
+    
+    // Caixa da Charada (Parecida com o Blockquote do App)
+    charadaBox: `
+      font-family: monospace;
+      font-size: 13px;
+      color: ${theme.zinc200};
+      background: ${theme.zinc900};
+      border: 1px solid ${theme.zinc500};
+      border-left: 3px solid ${theme.violet500};
+      padding: 10px 15px;
+      border-radius: 4px;
+      line-height: 1.5;
+    `,
+    
+    // Destaques no texto
+    label: `color: ${theme.violet500}; font-weight: bold; text-transform: uppercase; font-size: 10px; letter-spacing: 1px;`,
+    
+    // Rodapé
+    hint: `color: ${theme.zinc500}; font-style: italic; font-size: 11px; margin-top: 5px;`
+  };
+
+  const banner = `
+::::::::::. :::::::..       ...     .        :::::::::::. ::::::::::::
+ \`;;;\`\`\`.;;;;;;;\`\`;;;;   .;;;;;;;.  ;;,.    ;;;\`;;;\`\`\`.;;;;;;;;;;;''''
+  \`]]nnn]]'  [[[,\/[[['  ,[[     \\[[,[[[[, ,[[[[,\`]]nnn]]'      [[     
+   $$$""     $$$$$$c    $$$,     $$$$$$$$$$$"$$$ $$$""         $$     
+   888o      888b "88bo,"888,_ _,88P888 Y88" 888o888o          88,    
+   YMMMb     MMMM   "W"   "YMMMMMP" MMM  M'  "MMMYMMMb         MMM    
+
+`;
+
+  const mensagem = `
+%c${banner}
+%cSYSTEM READY. v1.0.0
+
+%c⚡ ACESSO RESTRITO DETECTADO
+
+%c"Eu criei tudo, vejo tudo, mas não existo.
+Três letras me definem, mas sou infinito.
+ Digite meu nome e o sistema será seu."%c\n\n💡 Dica: Quem programa o universo?
+
+%c⌨️  Mantenha a janela ativa e digite a resposta.
+`;
+
+  console.log(
+    mensagem,
+    styles.titulo,       // Banner ASCII
+    styles.subtitulo,    // System Ready
+    styles.label,        // Acesso Restrito
+    styles.charadaBox,   // A Charada
+    styles.hint,         // Dica
+    styles.subtitulo     // Instrução final
+  );
+}
+
+export const presentEasterEgg = () => {
+  console.clear();
+  
+  const theme = {
+    violet500: '#8b5cf6',
+    zinc200: '#e4e4e7',
+    zinc500: '#71717a',
+  };
+
+  console.log(
+    `%c✨ GOD MODE ACTIVATED ✨\n\n` +
+    `%cPrivilégios de Administrador: %cCONCEDIDOS\n` +
+    `%cRecursos Infinitos: %cATIVOS\n\n` +
+    `%c"Com grandes poderes, vem a necessidade de escrever prompts melhores."\n` +
+    `%c Aproveite a onipotência. O estado global da aplicação esta a sua disposição`,
+
+    `font-size: 20px; font-weight: bold; color: ${theme.violet500}; text-shadow: 0 0 10px ${theme.violet500};`, // Título
+    `color: ${theme.zinc500}; font-size: 12px;`, // Label
+    `color: ${theme.zinc200}; font-weight: bold; font-size: 12px;`, // Valor
+    `color: ${theme.zinc500}; font-size: 12px;`, // Label
+    `color: ${theme.zinc200}; font-weight: bold; font-size: 12px;`, // Valor
+    `color: ${theme.zinc200}; font-style: italic; margin-top: 10px; display: block; border-left: 2px solid ${theme.violet500}; padding-left: 10px;`, // Quote
+    `color: ${theme.zinc500}; font-size: 10px; margin-top: 5px;` // Footer
+  );
+};

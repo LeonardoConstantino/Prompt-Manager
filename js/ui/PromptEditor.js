@@ -3,6 +3,8 @@ import { MarkdownParser } from '../utils/markdown.js';
 import { getIcon } from '../utils/Icons.js';
 import { metaKey } from '../utils/platform.js';
 import { confirmModal } from './ConfirmModal.js';
+import {getStatsTextInfo} from '../utils/helpers.js';
+import {getStatusBarEditor} from './StatusBarEditor.js';
 
 export default class PromptEditor {
   constructor(containerId) {
@@ -190,34 +192,9 @@ export default class PromptEditor {
           `
               : ''
           }
-          </div>
           <!-- Status Bar do Editor -->
-          <div class="flex items-center gap-4 px-3 text-[10px] font-mono text-text-muted border-l border-border-subtle pl-6 mb-2 select-none">
-              
-              <!-- Caracteres -->
-              <div title="Total de caracteres" class="flex items-center gap-1 hover:text-text-main transition-colors cursor-default">
-                  <span id="stat-chars" class="font-bold text-text-main tabular-nums">0</span> 
-                  <span class="opacity-70">chars</span>
-              </div>
-
-              <!-- Palavras -->
-              <div title="Total de palavras" class="flex items-center gap-1 hover:text-text-main transition-colors cursor-default">
-                  <span id="stat-words" class="font-bold text-text-main tabular-nums">0</span> 
-                  <span class="opacity-70">palavras</span>
-              </div>
-
-              <!-- Tokens (Com destaque) -->
-              <div title="Estimativa: 1 token ≈ 4 caracteres" class="group relative cursor-help flex items-center gap-1 transition-colors">
-                  <!-- Ícone sutil de 'chip' -->
-                  ${getIcon(
-                    'chip',
-                    'w-3 h-3 opacity-50 group-hover:text-accent transition-colors'
-                  )}
-                  
-                  <span id="stat-tokens" class="font-bold text-accent transition-all duration-300 tabular-nums">0</span> 
-                  <span class="text-accent/70 group-hover:text-accent transition-colors">tok (est.)</span>
-              </div>
-        </div>
+          </div>
+          ${getStatusBarEditor()}
       </div>
     `;
 
@@ -308,16 +285,7 @@ export default class PromptEditor {
   updateStats() {
     const text = this.container.querySelector('#edit-content').value || '';
 
-    // 1. Caracteres
-    const chars = text.length;
-
-    // 2. Palavras (Split por whitespace)
-    const words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
-
-    // 3. Tokens (Estimativa heurística)
-    // OpenAI rule: ~4 chars per token.
-    // Para maior precisão em código/português, podemos ser conservadores e usar 3.5 ou manter 4.
-    const estTokens = Math.ceil(chars / 4);
+    const { chars, words, estTokens } = getStatsTextInfo(text)
 
     // Atualiza DOM
     const elChars = this.container.querySelector('#stat-chars');

@@ -106,15 +106,14 @@ export default class VersionHistory {
                 <div class="flex flex-col">
                   <div class="flex items-center gap-2">
                       <span class="text-xs font-bold font-mono text-text-main">
-                        ${formatDate(version.timestamp, true)}
+                        ${formatDate(version.timestamp, { includeTime: true })}
                       </span>
                       ${
                         isLatest
                           ? `<span class="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-medium select-none">Atual</span>`
                           : `<span class="text-[10px] text-text-muted font-mono opacity-60">${formatDate(
                               version.timestamp,
-                              false,
-                              true
+                              { isRelative: true }
                             )}</span>`
                       }
                   </div>

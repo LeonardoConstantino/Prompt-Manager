@@ -4,17 +4,17 @@
  */
 
 class EventBus {
-  constructor(options = {maxListeners: 35, debug: false}) {
+  constructor(options = { maxListeners: 35, debug: false }) {
     /**
      * @type {Map<string, Set<Function>>} Eventos registrados
      */
     this.events = new Map();
-    
+
     /**
      * @type {number} Limite de listeners por evento
      */
     this.maxListeners = options.maxListeners || 35;
-    
+
     /**
      * @type {boolean} Modo debug
      */
@@ -39,7 +39,7 @@ class EventBus {
    * @param {*} data - Dados adicionais
    * @private
    */
-  _log(action, event, data=null) {
+  _log(action, event, data = null) {
     if (this.debug) {
       console.log(`[EventBus] ${action}:`, event, data);
     }
@@ -59,12 +59,14 @@ class EventBus {
     }
 
     const listeners = this.events.get(event);
-    
+
     // Aviso de possível memory leak
     if (listeners?.size || 0 >= this.maxListeners) {
-      console.warn(
-        `[EventBus] Possible memory leak detected: ${listeners.size} listeners for "${event}"`
-      );
+      if (this.debug) {
+        console.warn(
+          `[EventBus] Possible memory leak detected: ${listeners.size} listeners for "${event}"`
+        );
+      }
     }
 
     listeners?.add(callback);
@@ -151,7 +153,10 @@ class EventBus {
       try {
         await callback(data);
       } catch (error) {
-        console.error(`[EventBus] Error in async listener for "${event}":`, error);
+        console.error(
+          `[EventBus] Error in async listener for "${event}":`,
+          error
+        );
       }
     });
 
@@ -194,4 +199,4 @@ class EventBus {
 export const createEventBus = (options) => new EventBus(options);
 
 // Exporta instância global padrão
-export default new EventBus({debug: false});
+export default new EventBus({ debug: false });

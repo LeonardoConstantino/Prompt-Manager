@@ -11,6 +11,8 @@ import {
   getCategoryColor,
 } from '../utils/helpers.js';
 import { animateButtonFeedback } from '../utils/uiHelpers.js';
+import {getStatsTextInfo} from '../utils/helpers.js';
+import {getStatusBarEditor} from './StatusBarEditor.js';
 
 export default class PromptViewer {
   constructor(containerId) {
@@ -100,6 +102,7 @@ export default class PromptViewer {
     if (!this.currentPrompt) return;
 
     const { name, description, tags, content, updatedAt } = this.currentPrompt;
+    const { chars, words, estTokens } = getStatsTextInfo(content)
     const htmlContent = this.markdown.parse(content);
     const safeLinks = Array.isArray(this.clickToRunLinks)
       ? this.clickToRunLinks
@@ -133,7 +136,7 @@ export default class PromptViewer {
       <div class="flex flex-col h-full bg-bg-app transition-colors duration-300">
         
         <!-- HEADER: Painel de Controle (Surface) -->
-        <div class="px-8 py-6 border-b border-border-subtle bg-bg-surface shadow-sm z-10 animate-fade-in-up opacity-0" 
+        <div class="px-8 py-6 pb-2 border-b border-border-subtle bg-bg-surface shadow-sm z-10 animate-fade-in-up opacity-0" 
              style="animation-delay: 0ms;">
           <div class="flex justify-between items-start mb-5 gap-4">
             <!-- Título com tracking ajustado para modernidade -->
@@ -178,9 +181,14 @@ export default class PromptViewer {
             
             <div class="text-xs font-mono text-text-muted flex items-center gap-2 opacity-80">
                 ${getIcon('calendar', 'w-3 h-3')}
-                <span>Atualizado: ${formatDate(updatedAt, true)}</span>
+                <span>Atualizado: ${formatDate(updatedAt, { includeTime: true })} ~ ${formatDate(
+        updatedAt,
+        { isRelative: true }
+      )}</span>
             </div>
           </div>
+          <!-- Status Bar do Editor -->
+          <div class="pt-4">${getStatusBarEditor({ chars, words, estTokens })}</div>
         </div>
 
         <!-- TOOLBAR: Barra de Ferramentas Técnica -->

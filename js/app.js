@@ -13,6 +13,7 @@ import { confirmModal } from './ui/ConfirmModal.js';
 import eventBus from './utils/eventBus.js';
 import KeyboardShortcutManager from './lib/KeyboardShortcutManager.js';
 import { toast } from './utils/Toast.js';
+import {generateWelcome, presentEasterEgg} from '../js/utils/helpers.js'
 
 class App {
   constructor() {
@@ -60,7 +61,7 @@ class App {
       // Colocamos um pequeno delay para não aparecer "em cima" da animação de saída do loader
       setTimeout(() => this.checkFirstRun(), 800);
 
-      console.log('App initialized successfully');
+      generateWelcome()
     } catch (error) {
       // Se der erro fatal no boot, removemos o loader para mostrar o erro
       eventBus.emit('app:loading:end', { type: 'boot' });
@@ -328,6 +329,7 @@ Produza **apenas a resposta final**, sem mencionar o processo interno.
       ['g', 'o', 'd'],
       () => {
         toast.show('👑 God Mode: Console Logging Enabled', 'info');
+        presentEasterEgg()
         console.log('Current State:', this.repository._getData());
       },
       { context: 'no-input', description: 'Ativar God Mode' }

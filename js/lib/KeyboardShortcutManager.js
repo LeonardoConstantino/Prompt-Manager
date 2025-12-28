@@ -75,6 +75,15 @@ class KeyboardShortcutManager {
 
     this.initialized = true;
     this._log('Event listeners registrados');
+    
+    if (this.options.debug) {
+      setInterval(() => {
+        const status = this.getMemoryStatus();
+        if (status.pressedKeys > 5 || status.pendingDebounce > 10) {
+          console.warn('⚠️ Possível vazamento detectado:', status);
+        }
+      }, 30000); // Verifica a cada 30 segundos
+    }
     return this;
   }
 
@@ -96,6 +105,12 @@ class KeyboardShortcutManager {
     this.sequences.clear();
     this.longPressHandlers.clear();
     this._clearAllTimers();
+
+    // 🔥 ADICIONAR: Limpa debounce timers
+    for (const timer of this.debounceTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.debounceTimers.clear();
 
     this.initialized = false;
     this._log('KeyboardShortcutManager destruído');
@@ -245,6 +260,14 @@ class KeyboardShortcutManager {
   handleKeyDown(e) {
     if (!this.initialized) return;
 
+    // 🔥 CORREÇÃO: Ignora key repeat para long press
+    if (e.repeat && this.options.enableLongPress) {
+      // Para sequências e atalhos normais, processa normalmente
+      if (!this.options.enableSequences) {
+        return;
+      }
+    }
+
     // Normalização consistente (🔥 Correção #3)
     const keyInfo = this._extractKeyInfo(e);
     const { code, key, normalizedKey } = keyInfo;
@@ -256,7 +279,7 @@ class KeyboardShortcutManager {
 
     // === 1. LONG PRESS ===
     if (this.options.enableLongPress) {
-      this._handleLongPress(code, normalizedKey, e);
+      this._handleLongPress(code, key, e);
     }
 
     // === 2. SEQUÊNCIAS ===
@@ -275,7 +298,7 @@ class KeyboardShortcutManager {
   handleKeyUp(e) {
     if (!this.initialized) return;
 
-    const { code } = this._extractKeyInfo(e);
+    const { code, key } = this._extractKeyInfo(e);
 
     // Cancela long press de forma segura
     this._cancelLongPress(code);
@@ -381,6 +404,7 @@ class KeyboardShortcutManager {
 
     if (!result.hasPrefix) {
       // Nenhuma sequência possível
+      this._clearSequenceTimer(); // 🔥 Limpa timer também aqui
       this.currentSequence = [];
       return;
     }
@@ -409,11 +433,15 @@ class KeyboardShortcutManager {
    * Gerencia long press com prevenção de race condition
    * 🔥 Correção #2: Estado é limpo antes de criar novo timer
    */
-  _handleLongPress(code, normalizedKey, event) {
-    // Cancela qualquer timer existente para esta tecla
-    this._cancelLongPress(code);
+  _handleLongPress(code, key, event) {
+    // Verifica se tecla já está pressionada (ignora repeat)
+    if (this.pressedKeys.has(code)) {
+      return;
+    }
 
-    const longPressConfig = this.longPressHandlers.get(normalizedKey);
+    const simplifiedKey = this._normalizeKeyString(key);
+    const longPressConfig = this.longPressHandlers.get(simplifiedKey);
+
     if (!longPressConfig) {
       // Apenas rastreia sem timer
       this.pressedKeys.set(code, {
@@ -423,22 +451,22 @@ class KeyboardShortcutManager {
       return;
     }
 
-    // Cria novo timer
+    // 🔥 CORREÇÃO: Cria timer e salva ANTES do setTimeout
     const timer = setTimeout(() => {
-      this._log(`Long press: ${normalizedKey}`);
+      this._log(`Long press: ${simplifiedKey}`);
       longPressConfig.handler(event, {
-        key: normalizedKey,
+        key: simplifiedKey,
         duration: longPressConfig.config.duration,
       });
 
-      // Remove da lista de teclas pressionadas
+      // Remove da lista após disparar
       this.pressedKeys.delete(code);
     }, longPressConfig.config.duration);
 
-    // Armazena estado
+    // 🔥 SALVA o timer em pressedKeys
     this.pressedKeys.set(code, {
       timestamp: Date.now(),
-      timer,
+      timer: timer, // ✅ Agora o timer pode ser cancelado
     });
   }
 
@@ -447,7 +475,9 @@ class KeyboardShortcutManager {
    */
   _cancelLongPress(code) {
     const keyState = this.pressedKeys.get(code);
-    if (!keyState) return;
+    if (!keyState) {
+      return;
+    }
 
     if (keyState.timer !== null) {
       clearTimeout(keyState.timer);
@@ -711,6 +741,23 @@ class KeyboardShortcutManager {
     if (this.options.debug) {
       console.log('[KeyboardShortcutManager]', ...args);
     }
+  }
+
+  /**
+   * Método de diagnóstico - verifica se há timers pendentes
+   * @returns {Object} Status da memória
+   */
+  getMemoryStatus() {
+    return {
+      activeShortcuts: this.shortcuts.size,
+      activeSequences: this.sequences.root.children.size,
+      activeLongPress: this.longPressHandlers.size,
+      pressedKeys: this.pressedKeys.size,
+      pendingDebounce: this.debounceTimers.size,
+      hasSequenceTimer: this.sequenceTimer !== null,
+      currentSequence: this.currentSequence.length,
+      initialized: this.initialized,
+    };
   }
 }
 
