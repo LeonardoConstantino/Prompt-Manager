@@ -140,7 +140,7 @@ export default class PromptList {
           </div>
 
           <!-- Área de Chips (Tags) -->
-          <div id="tag-filter-area" class="hidden max-h[300px] overflow-y-auto flex flex-wrap gap-1.5 pt-2 animate-fade-in border-t border-border-subtle/50 mt-2">
+          <div id="tag-filter-area" class="hidden max-h-75 overflow-y-auto flex flex-wrap gap-1.5 pt-2 animate-fade-in border-t border-border-subtle/50 mt-2">
              <!-- Tags injetadas via JS -->
           </div>
         </div>
